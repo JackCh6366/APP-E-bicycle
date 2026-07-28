@@ -1,8 +1,4 @@
 {
   "name": "Jack的youbike小幫手",
-  "description": "台北市 YouBike 2.0 即時查詢 App，提供即時車位查詢、地圖定位、搜尋與附近站點列表。",
-  "requestFramePermissions": [],
-  "majorCapabilities": [
-    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
-  ]
+  "description": "台北市 YouBike 2.0 即時查詢 App，提供即時車位查詢、地圖定位、搜尋與附近站點列表與 AI 智慧諮詢。"
 }

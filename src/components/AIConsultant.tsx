@@ -34,6 +34,7 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
   ]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [selectedService, setSelectedService] = useState<'gemini' | 'nvidia' | 'meta'>('gemini');
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -72,53 +73,56 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
     setIsLoading(true);
 
     try {
-      // Get top 5 stations in the district with most available bikes as stats
+      // Top 5 available stations format
       const topStations = [...stationsInDistrict]
         .filter(s => s.available_rent_bikes > 0 && s.act === '1')
         .sort((a, b) => b.available_rent_bikes - a.available_rent_bikes)
         .slice(0, 5)
-        .map(s => ({
-          sna: s.sna,
-          sarea: s.sarea,
-          ar: s.ar,
-          available_rent_bikes: s.available_rent_bikes,
-          available_return_bikes: s.available_return_bikes,
-          total: s.total,
-        }));
+        .map(s => `- ${s.sna}: 剩餘可借 ${s.available_rent_bikes} 輛 / 可還 ${s.available_return_bikes} 空位 (地址: ${s.ar})`)
+        .join('\n');
 
-      const historyPayload = messages.slice(1).map(msg => ({
-        role: msg.role,
-        text: msg.text
-      }));
+      let contextInfo = `【即時台北市 YouBike 2.0 系統狀態與使用者上下文】\n`;
+      if (currentDistrict) {
+        contextInfo += `- 使用者目前瀏覽/選取的行政區：${currentDistrict}\n`;
+      }
+      if (selectedStation) {
+        contextInfo += `- 使用者目前選取的特定站點：${selectedStation.sna} (${selectedStation.ar || "無地址資訊"})\n`;
+        contextInfo += `  * 可借車輛：${selectedStation.available_rent_bikes} 輛，可還車位：${selectedStation.available_return_bikes} 個，營運狀態：${selectedStation.act === "1" ? "正常營運" : "暫停"}\n`;
+      }
+      if (topStations) {
+        contextInfo += `- 該區域推薦「車輛充足」站點：\n${topStations}\n`;
+      }
 
-      const response = await fetch('/api/ai/consult', {
+      const guideInfo = `
+【台北市 YouBike 2.0 實用資訊速查】
+1. 費率說明：騎乘前 30 分鐘 5 元（台北市政府補助 5 元）；4 小時內每 30 分鐘 10 元；4 至 8 小時每 30 分鐘 20 元；超過 8 小時每 30 分鐘 40 元。台北市與新北市、桃園市互還無額外調度費。
+2. 租借方式：悠遊卡/一卡通，或下載 YouBike 2.0 App 綁定信用卡/Line Pay 掃描 QR Code 租借。
+3. 客服資訊：02-89785522 或 1999 轉 YouBike 客服。
+`;
+
+      const systemInstruction = `你是一位專業、親切且幽默的「台北 YouBike 2.0 AI 智慧諮詢專員」。請始終使用「繁體中文（台灣繁體）」回覆，語氣保持溫暖積極，充分利用即時站點資料與費率速查提供準確解答，使用精美的 Markdown 排版。`;
+
+      const historyText = messages.slice(1).map(msg => `${msg.role === 'user' ? '使用者' : 'AI 專員'}: ${msg.text}`).join('\n');
+
+      const compiledPrompt = `${systemInstruction}\n\n${contextInfo}\n${guideInfo}\n\n${historyText ? `【對話歷史】\n${historyText}\n\n` : ''}使用者最新詢問：${textToSend}`;
+
+      const response = await fetch('/api/analyze', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          userPrompt: textToSend,
-          history: historyPayload,
-          sarea: currentDistrict,
-          selectedStation: selectedStation ? {
-            sna: selectedStation.sna,
-            sarea: selectedStation.sarea,
-            ar: selectedStation.ar,
-            available_rent_bikes: selectedStation.available_rent_bikes,
-            available_return_bikes: selectedStation.available_return_bikes,
-            total: selectedStation.total,
-            act: selectedStation.act
-          } : null,
-          stationStats: topStations,
+          service: selectedService,
+          prompt: compiledPrompt,
         }),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('AI 專員暫時忙碌中，請稍後再試。');
+        throw new Error(data.error || 'AI 專員暫時無法回應，請稍後再試。');
       }
 
-      const data = await response.json();
-      
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
@@ -131,7 +135,7 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        text: `⚠️ **連線錯誤**\n\n抱歉，與 AI 專員的連線不順暢 (${error.message || '請確認 API 金鑰已設定'})。您可以嘗試重新點選，或直接再次送出您的問題。`,
+        text: `⚠️ **連線失敗**\n\n${error.message || '無法連線至 AI 服務，請稍後再試。'}`,
         timestamp: new Date(),
       };
       setMessages((prev) => [...prev, errorMessage]);
@@ -163,7 +167,7 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
   };
 
   // Helper to format text with simple markdown (bold and lists)
-  const renderMessageText = (text: string) => {
+  const renderMessageText = (text: string, isAssistant: boolean = true) => {
     return text.split('\n').map((line, idx) => {
       // Bold rendering **text**
       let parts: React.ReactNode[] = [];
@@ -175,7 +179,14 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
         const textBefore = line.substring(lastIndex, match.index);
         const boldText = match[1];
         if (textBefore) parts.push(textBefore);
-        parts.push(<strong key={match.index} className="font-bold text-slate-900 dark:text-white">{boldText}</strong>);
+        parts.push(
+          <strong
+            key={match.index}
+            className={`font-bold ${isAssistant ? 'text-slate-900 dark:text-white' : 'text-inherit'}`}
+          >
+            {boldText}
+          </strong>
+        );
         lastIndex = regex.lastIndex;
       }
       
@@ -188,7 +199,7 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
       if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
         const content = line.trim().substring(2);
         return (
-          <li key={idx} className="list-disc list-inside ml-2 my-1 text-slate-700 dark:text-slate-300">
+          <li key={idx} className="list-disc list-inside ml-2 my-1 text-inherit">
             {parts.length > 0 ? parts : content}
           </li>
         );
@@ -198,15 +209,15 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
       const orderedMatch = line.trim().match(/^(\d+)\.\s(.*)/);
       if (orderedMatch) {
         return (
-          <div key={idx} className="flex gap-1 my-1 pl-1 text-slate-700 dark:text-slate-300">
-            <span className="font-bold text-amber-500 shrink-0">{orderedMatch[1]}.</span>
+          <div key={idx} className="flex gap-1 my-1 pl-1 text-inherit">
+            <span className={`font-bold shrink-0 ${isAssistant ? 'text-amber-500' : 'text-inherit'}`}>{orderedMatch[1]}.</span>
             <span>{parts.length > 0 ? parts : orderedMatch[2]}</span>
           </div>
         );
       }
 
       return (
-        <p key={idx} className={`min-h-[1.25rem] leading-relaxed text-slate-700 dark:text-slate-300 ${line.trim() === '' ? 'h-3' : 'my-1'}`}>
+        <p key={idx} className={`min-h-[1.25rem] leading-relaxed text-inherit ${line.trim() === '' ? 'h-3' : 'my-1'}`}>
           {finalContent}
         </p>
       );
@@ -291,8 +302,25 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
             </div>
           </div>
 
+          {/* AI Service Selector Dropdown */}
+          <div className="mt-2.5 bg-white/10 dark:bg-white/10 rounded-lg p-2 flex items-center justify-between gap-2 text-xs">
+            <span className="text-[11px] font-bold text-[#FFD700] shrink-0 flex items-center gap-1">
+              <Sparkles className="w-3.5 h-3.5 text-amber-400" /> AI 服務：
+            </span>
+            <select
+              id="ai-service-selector"
+              value={selectedService}
+              onChange={(e) => setSelectedService(e.target.value as 'gemini' | 'nvidia' | 'meta')}
+              className="bg-slate-800 dark:bg-slate-900 text-white text-[11px] font-semibold px-2 py-1 rounded-md border border-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer w-full text-right"
+            >
+              <option value="gemini">Google Gemini (3.1 Flash Lite)</option>
+              <option value="nvidia">NVIDIA (Nemotron 3 Ultra)</option>
+              <option value="meta">Meta (Llama 3.3 70B)</option>
+            </select>
+          </div>
+
           {/* Context Banner */}
-          <div className="mt-2.5 bg-white/5 dark:bg-white/5 rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2 text-[10px] text-slate-300">
+          <div className="mt-2 bg-white/5 dark:bg-white/5 rounded-lg px-2.5 py-1.5 flex items-center justify-between gap-2 text-[10px] text-slate-300">
             <span className="truncate">
               📍 當前行政區：<strong className="text-[#FFD700]">{currentDistrict || '未選取'}</strong>
               {selectedStation && (
@@ -329,15 +357,15 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
                   className={`max-w-[82%] rounded-2xl px-3.5 py-2.5 text-xs shadow-xs leading-relaxed ${
                     isAssistant
                       ? 'bg-white dark:bg-slate-900 text-slate-800 dark:text-slate-100 border border-slate-200/40 dark:border-slate-800/60 rounded-tl-none'
-                      : 'bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 rounded-tr-none font-medium'
+                      : 'bg-slate-800 dark:bg-amber-400 text-white dark:text-slate-950 rounded-tr-none font-semibold'
                   }`}
                 >
                   <div className="space-y-1">
-                    {renderMessageText(msg.text)}
+                    {renderMessageText(msg.text, isAssistant)}
                   </div>
                   <span
                     className={`block text-[9px] mt-1 text-right ${
-                      isAssistant ? 'text-slate-400' : 'text-white/60'
+                      isAssistant ? 'text-slate-400' : 'text-white/70 dark:text-slate-900/70'
                     }`}
                   >
                     {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -345,8 +373,8 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
                 </div>
 
                 {!isAssistant && (
-                  <div className="w-7 h-7 rounded-lg bg-slate-800 dark:bg-slate-100 flex items-center justify-center shrink-0">
-                    <User className="w-4 h-4 text-white dark:text-slate-900" />
+                  <div className="w-7 h-7 rounded-lg bg-slate-800 dark:bg-amber-400 flex items-center justify-center shrink-0">
+                    <User className="w-4 h-4 text-white dark:text-slate-950" />
                   </div>
                 )}
               </div>
@@ -361,7 +389,7 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
               </div>
               <div className="bg-white dark:bg-slate-900 rounded-2xl rounded-tl-none px-3.5 py-3 shadow-xs border border-slate-200/40 dark:border-slate-800/60 flex items-center gap-2">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
-                <span className="text-[10px] text-slate-400 dark:text-slate-500 font-semibold animate-pulse">AI 專員正在整合即時車輛狀態...</span>
+                <span className="text-[11px] text-slate-700 dark:text-slate-200 font-semibold animate-pulse">AI 專員正在整合即時車輛狀態...</span>
               </div>
             </div>
           )}
@@ -377,7 +405,7 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
                 <button
                   key={idx}
                   onClick={() => handleQuickQuestion(q.text)}
-                  className="text-left text-[11px] font-semibold text-slate-700 dark:text-slate-300 hover:text-amber-600 dark:hover:text-[#FFD700] hover:bg-amber-50/30 dark:hover:bg-amber-500/5 px-2.5 py-1.5 rounded-lg border border-slate-200/50 dark:border-slate-800/50 bg-white dark:bg-slate-900 cursor-pointer transition-all truncate"
+                  className="text-left text-[11px] font-semibold text-slate-700 dark:text-slate-200 hover:text-amber-600 dark:hover:text-[#FFD700] hover:bg-amber-50/30 dark:hover:bg-amber-500/5 px-2.5 py-1.5 rounded-lg border border-slate-200/50 dark:border-slate-800/50 bg-white dark:bg-slate-900 cursor-pointer transition-all truncate"
                 >
                   {q.text}
                 </button>
@@ -401,7 +429,7 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
               value={input}
               onChange={(e) => setInput(e.target.value)}
               disabled={isLoading}
-              className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-950 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-yellow-400 focus:bg-white dark:focus:bg-slate-900 text-slate-800 dark:text-slate-100 placeholder-slate-400 transition-all"
+              className="flex-1 px-3.5 py-2.5 rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-950 text-xs font-semibold focus:outline-none focus:ring-2 focus:ring-amber-400 focus:bg-white dark:focus:bg-slate-900 text-slate-900 dark:text-slate-50 placeholder-slate-500 dark:placeholder-slate-400 transition-all"
             />
             <button
               type="submit"
@@ -412,7 +440,7 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
             </button>
           </form>
           <div className="flex items-center justify-between mt-2 text-[9px] text-slate-400 px-1">
-            <span>Powered by Gemini 3.5 Flash</span>
+            <span>Powered by {selectedService === 'gemini' ? 'Google Gemini 3.1 Flash Lite' : selectedService === 'nvidia' ? 'NVIDIA Nemotron 3 Ultra' : 'Meta Llama 3.3 70B'}</span>
             <span className="flex items-center gap-0.5">
               回車鍵傳送 <CornerDownLeft className="w-2.5 h-2.5" />
             </span>
