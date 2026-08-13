@@ -10,6 +10,7 @@ interface Message {
 }
 
 interface AIConsultantProps {
+  currentCityName?: string;
   currentDistrict: string;
   selectedStation: YouBikeStation | null;
   stationsInDistrict: YouBikeStation[];
@@ -22,13 +23,13 @@ const QUICK_QUESTIONS = [
   { text: '🔑 電子票證（悠遊卡）如何註冊？', tag: 'easycard' },
 ];
 
-export default function AIConsultant({ currentDistrict, selectedStation, stationsInDistrict }: AIConsultantProps) {
+export default function AIConsultant({ currentCityName = '台北市', currentDistrict, selectedStation, stationsInDistrict }: AIConsultantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
       id: 'welcome',
       role: 'assistant',
-      text: '您好！我是 **Jack的youbike小幫手** 專屬 AI 諮詢專員 🚲✨\n\n我可以協助您：\n- 查詢目前區域（如：**' + (currentDistrict || '未選取行政區') + '**）有哪些車輛充足的推薦站點\n- 計算租借費率與市府最新的 30 分鐘補助說明\n- 提供騎乘安全指引、失物招領、註冊教學等諮詢服務\n\n有什麼我可以幫您的嗎？您可以直接輸入問題，或點選下方的快捷問題喔！',
+      text: `您好！我是 **Jack的youbike小幫手** 專屬 AI 諮詢專員 🚲✨\n\n我可以協助您：\n- 查詢目前【${currentCityName}】（如：**${currentDistrict || '未選取行政區'}**）有哪些車輛充足的推薦站點\n- 計算租借費率與跨市騎乘騎乘說明\n- 提供騎乘安全指引、失物招領、註冊教學等諮詢服務\n\n有什麼我可以幫您的嗎？您可以直接輸入問題，或點選下方的快捷問題喔！`,
       timestamp: new Date(),
     }
   ]);
@@ -44,19 +45,19 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, isLoading]);
 
-  // Update welcome message if district changes
+  // Update welcome message if district or city changes
   useEffect(() => {
     if (messages.length === 1 && messages[0].id === 'welcome') {
       setMessages([
         {
           id: 'welcome',
           role: 'assistant',
-          text: `您好！我是 **Jack的youbike小幫手** 專屬 AI 諮詢專員 🚲✨\n\n我可以協助您：\n- 查詢目前區域（如：**${currentDistrict || '未選取行政區'}**）有哪些車輛充足的推薦站點\n- 計算租借費率與市府最新的 30 分鐘補助說明\n- 提供騎乘安全指引、失物招領、註冊教學等諮詢服務\n\n有什麼我可以幫您的嗎？您可以直接輸入問題，或點選下方的快捷問題喔！`,
+          text: `您好！我是 **Jack的youbike小幫手** 專屬 AI 諮詢專員 🚲✨\n\n我可以協助您：\n- 查詢目前【${currentCityName}】（如：**${currentDistrict || '未選取行政區'}**）有哪些車輛充足的推薦站點\n- 計算租借費率與跨市騎乘騎乘說明\n- 提供騎乘安全指引、失物招領、註冊教學等諮詢服務\n\n有什麼我可以幫您的嗎？您可以直接輸入問題，或點選下方的快捷問題喔！`,
           timestamp: new Date(),
         }
       ]);
     }
-  }, [currentDistrict]);
+  }, [currentCityName, currentDistrict]);
 
   const handleSend = async (textToSend: string) => {
     if (!textToSend.trim() || isLoading) return;
@@ -81,7 +82,8 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
         .map(s => `- ${s.sna}: 剩餘可借 ${s.available_rent_bikes} 輛 / 可還 ${s.available_return_bikes} 空位 (地址: ${s.ar})`)
         .join('\n');
 
-      let contextInfo = `【即時台北市 YouBike 2.0 系統狀態與使用者上下文】\n`;
+      let contextInfo = `【即時${currentCityName} YouBike 2.0 系統狀態與使用者上下文】\n`;
+      contextInfo += `- 查詢縣市：${currentCityName}\n`;
       if (currentDistrict) {
         contextInfo += `- 使用者目前瀏覽/選取的行政區：${currentDistrict}\n`;
       }
@@ -94,13 +96,13 @@ export default function AIConsultant({ currentDistrict, selectedStation, station
       }
 
       const guideInfo = `
-【台北市 YouBike 2.0 實用資訊速查】
-1. 費率說明：騎乘前 30 分鐘 5 元（台北市政府補助 5 元）；4 小時內每 30 分鐘 10 元；4 至 8 小時每 30 分鐘 20 元；超過 8 小時每 30 分鐘 40 元。台北市與新北市、桃園市互還無額外調度費。
+【${currentCityName} YouBike 2.0 實用資訊速查】
+1. 費率說明：騎乘前 30 分鐘 5 元（部份縣市享市府補助優惠）；4 小時內每 30 分鐘 10 元；4 至 8 小時每 30 分鐘 20 元；超過 8 小時每 30 分鐘 40 元。台北市與新北市互還無額外調度費。
 2. 租借方式：悠遊卡/一卡通，或下載 YouBike 2.0 App 綁定信用卡/Line Pay 掃描 QR Code 租借。
-3. 客服資訊：02-89785522 或 1999 轉 YouBike 客服。
+3. 客服資訊：客服專線 1999 或 02-89785522。
 `;
 
-      const systemInstruction = `你是一位專業、親切且幽默的「台北 YouBike 2.0 AI 智慧諮詢專員」。請始終使用「繁體中文（台灣繁體）」回覆，語氣保持溫暖積極，充分利用即時站點資料與費率速查提供準確解答，使用精美的 Markdown 排版。`;
+      const systemInstruction = `你是一位專業、親切且幽默的「${currentCityName} YouBike 2.0 AI 智慧諮詢專員」。請始終使用「繁體中文（台灣繁體）」回覆，語氣保持溫暖積極，充分利用即時站點資料與費率速查提供準確解答，使用精美的 Markdown 排版。`;
 
       const historyText = messages.slice(1).map(msg => `${msg.role === 'user' ? '使用者' : 'AI 專員'}: ${msg.text}`).join('\n');
 

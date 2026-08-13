@@ -4,7 +4,7 @@
  */
 
 import { useQuery } from '@tanstack/react-query';
-import { YouBikeStation } from '../types';
+import { YouBikeStation, CityKey, CITIES } from '../types';
 
 // Helper to calculate distance in meters between two coordinates using Haversine formula
 export function calculateDistance(
@@ -32,43 +32,88 @@ export function cleanStationName(name: string): string {
   return name.replace(/^YouBike2\.0_/i, '').trim();
 }
 
-const API_URL = 'https://tcgbusfs.blob.core.windows.net/dotapp/youbike/v2/youbike_immediate.json';
+// Fetch helper with timeout
+async function fetchWithTimeout(url: string, timeoutMs = 10000): Promise<Response> {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { signal: controller.signal });
+    clearTimeout(id);
+    return response;
+  } catch (err: any) {
+    clearTimeout(id);
+    if (err.name === 'AbortError') {
+      throw new Error('伺服器回應超時 (Timeout)，請稍後再試');
+    }
+    throw err;
+  }
+}
 
-export function useYouBike(userCoords: { latitude: number; longitude: number } | null) {
+export function useYouBike(
+  city: CityKey = 'taipei',
+  userCoords: { latitude: number; longitude: number } | null = null
+) {
+  const cityConfig = CITIES[city] || CITIES.taipei;
+
   return useQuery<YouBikeStation[]>({
-    queryKey: ['youbike'],
+    queryKey: ['youbike', city],
     queryFn: async () => {
-      const response = await fetch(API_URL);
-      if (!response.ok) {
-        throw new Error('無法取得 YouBike 即時資料');
+      let response: Response;
+      try {
+        response = await fetchWithTimeout(cityConfig.apiUrl, 10000);
+      } catch (err: any) {
+        throw new Error(`無法連線至${cityConfig.name} YouBike API: ${err.message || '網路異常'}`);
       }
-      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(`無法取得${cityConfig.name} YouBike 即時資料 (HTTP ${response.status})`);
+      }
+
+      const json = await response.json();
       
-      // Ensure data is array and transform numeric fields
-      if (!Array.isArray(data)) {
-        throw new Error('API 回傳格式錯誤');
+      // Extract array based on API structure
+      let data: any[] = [];
+      if (Array.isArray(json)) {
+        data = json;
+      } else if (json && typeof json === 'object') {
+        if (Array.isArray(json.data?.retVal)) {
+          data = json.data.retVal;
+        } else if (Array.isArray(json.retVal)) {
+          data = json.retVal;
+        } else if (Array.isArray(json.data)) {
+          data = json.data;
+        }
+      }
+
+      if (!Array.isArray(data) || data.length === 0) {
+        throw new Error(`${cityConfig.name} API 回傳格式無有效站點資料`);
       }
 
       return data.map((item: any) => {
-        const lat = parseFloat(item.latitude);
-        const lng = parseFloat(item.longitude);
+        const lat = parseFloat(item.latitude ?? item.lat);
+        const lng = parseFloat(item.longitude ?? item.lng);
         
         let dist: number | undefined;
-        if (userCoords) {
+        if (userCoords && !isNaN(lat) && !isNaN(lng)) {
           dist = calculateDistance(userCoords.latitude, userCoords.longitude, lat, lng);
         }
 
+        const availableRent = parseInt(item.available_rent_bikes ?? item.sbi, 10) || 0;
+        const availableReturn = parseInt(item.available_return_bikes ?? item.bemp, 10) || 0;
+        const total = parseInt(item.total ?? item.tot ?? item.Quantity, 10) || 0;
+        const actStatus = item.act !== undefined ? String(item.act) : '1';
+
         return {
-          sno: item.sno,
-          sna: cleanStationName(item.sna),
-          sarea: item.sarea,
-          ar: item.ar,
-          latitude: lat,
-          longitude: lng,
-          available_rent_bikes: parseInt(item.available_rent_bikes, 10) || 0,
-          available_return_bikes: parseInt(item.available_return_bikes, 10) || 0,
-          total: parseInt(item.total, 10) || parseInt(item.Quantity, 10) || 0,
-          act: item.act,
+          sno: String(item.sno || ''),
+          sna: cleanStationName(item.sna || ''),
+          sarea: item.sarea || '',
+          ar: item.ar || '',
+          latitude: isNaN(lat) ? 0 : lat,
+          longitude: isNaN(lng) ? 0 : lng,
+          available_rent_bikes: availableRent,
+          available_return_bikes: availableReturn,
+          total: total,
+          act: actStatus,
           mday: item.mday || item.updateTime || '',
           distance: dist,
         };
@@ -78,3 +123,4 @@ export function useYouBike(userCoords: { latitude: number; longitude: number } |
     staleTime: 15000,       // Consider data stale after 15 seconds
   });
 }
+

@@ -11,7 +11,7 @@ import SearchFilters from './components/SearchFilters';
 import StationList from './components/StationList';
 import StationDetail from './components/StationDetail';
 import AIConsultant from './components/AIConsultant';
-import { FilterState, YouBikeStation } from './types';
+import { FilterState, YouBikeStation, CityKey, CITIES } from './types';
 import { 
   Sun, 
   Moon, 
@@ -19,24 +19,15 @@ import {
   RefreshCw, 
   Map as MapIcon, 
   List, 
-  MapPin, 
-  Compass, 
   AlertTriangle,
   Info
 } from 'lucide-react';
 
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      refetchOnWindowFocus: false,
-      retry: 1,
-    },
-  },
-});
-
 function YouBikeAppContent() {
   const userCoords = null;
-  const { data, isLoading, isError, error, refetch, isFetching } = useYouBike(userCoords);
+  const [selectedCity, setSelectedCity] = useState<CityKey>('taipei');
+  
+  const { data, isLoading, isError, error, refetch, isFetching } = useYouBike(selectedCity, userCoords);
 
   // States
   const [filter, setFilter] = useState<FilterState>({
@@ -85,18 +76,35 @@ function YouBikeAppContent() {
     return Array.from(unique).sort();
   }, [data]);
 
-  // Set default district to 大安區 or first district once available
+  // Handle City Switcher
+  const handleCityChange = (newCity: CityKey) => {
+    if (newCity === selectedCity) return;
+    setSelectedCity(newCity);
+    setSelectedStation(null);
+    const cityConfig = CITIES[newCity];
+    setCenterCoords(cityConfig.defaultCenter);
+    setFilter((prev) => ({
+      ...prev,
+      searchQuery: '',
+      sarea: '', // Will be updated by districts effect once data loads
+    }));
+    showToast(`已切換至【${cityConfig.name}】YouBike 2.0 即時查詢`);
+  };
+
+  // Set default district once districts load for current city
   useEffect(() => {
-    if (districts.length > 0 && !filter.sarea) {
-      const defaultDistrict = districts.includes('大安區') ? '大安區' : districts[0];
-      setFilter((prev) => ({ ...prev, sarea: defaultDistrict }));
+    if (districts.length > 0) {
+      const cityDefault = CITIES[selectedCity].defaultDistrict;
+      if (!filter.sarea || !districts.includes(filter.sarea)) {
+        const nextDistrict = districts.includes(cityDefault) ? cityDefault : districts[0];
+        setFilter((prev) => ({ ...prev, sarea: nextDistrict }));
+      }
     }
-  }, [districts, filter.sarea]);
+  }, [districts, selectedCity]);
 
   // Handle station selection from map or list
   const handleSelectStation = (station: YouBikeStation) => {
     setSelectedStation(station);
-    // Smooth scroll to the station card if in list view
     if (mobileTab === 'list') {
       setTimeout(() => {
         const card = document.getElementById(`station-card-${station.sno}`);
@@ -111,7 +119,7 @@ function YouBikeAppContent() {
   const handleFocusStation = (station: YouBikeStation) => {
     setCenterCoords({ latitude: station.latitude, longitude: station.longitude });
     setSelectedStation(station);
-    setMobileTab('map'); // Switch to map view on mobile
+    setMobileTab('map');
   };
 
   // Filter and sort YouBike stations
@@ -150,11 +158,11 @@ function YouBikeAppContent() {
       if (filter.sortBy === 'available_return') {
         return b.available_return_bikes - a.available_return_bikes;
       }
-      return 0; // Default sorted by YouBike API's natural response order
+      return 0;
     });
   }, [data, filter]);
 
-  // Aggregate stats of filtered results for real-time dashboard cards
+  // Aggregate stats of filtered results
   const stats = useMemo(() => {
     const totalCount = data?.length || 0;
     const activeCount = data?.filter(s => s.act === '1').length || 0;
@@ -182,6 +190,8 @@ function YouBikeAppContent() {
     return data.filter((s) => s.sarea === filter.sarea);
   }, [data, filter.sarea]);
 
+  const currentCityConfig = CITIES[selectedCity];
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 font-sans transition-colors duration-300">
       
@@ -205,7 +215,9 @@ function YouBikeAppContent() {
                 Jack的youbike小幫手
                 <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400">即時 Live</span>
               </h1>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">台北市 YouBike 2.0 即時查詢與 AI 智慧諮詢</p>
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+                {currentCityConfig.name} YouBike 2.0 即時查詢與 AI 智慧諮詢
+              </p>
             </div>
           </div>
 
@@ -214,7 +226,7 @@ function YouBikeAppContent() {
             <button
               onClick={() => {
                 refetch();
-                showToast('正在獲取最新 YouBike 站點資訊...');
+                showToast(`正在獲取最新 ${currentCityConfig.name} YouBike 站點資訊...`);
               }}
               disabled={isFetching}
               className="p-2.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 border border-slate-100 dark:border-slate-800 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
@@ -241,9 +253,11 @@ function YouBikeAppContent() {
         {/* Loading Indicator */}
         {isLoading && (
           <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-12 h-12 rounded-full border-4 border-emerald-500 border-t-transparent animate-spin mb-4"></div>
-            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">正在下載 YouBike 2.0 即時車位資料...</h3>
-            <p className="text-xs text-slate-400 mt-1">首次載入可能需要數秒，請稍候</p>
+            <div className="w-12 h-12 rounded-full border-4 border-amber-400 border-t-transparent animate-spin mb-4"></div>
+            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+              正在下載【{currentCityConfig.name}】YouBike 2.0 即時車位資料...
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">連線中，請稍候</p>
           </div>
         )}
 
@@ -253,9 +267,11 @@ function YouBikeAppContent() {
             <div className="p-4 rounded-full bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 mb-4">
               <AlertTriangle className="w-8 h-8" />
             </div>
-            <h3 className="text-base font-bold text-rose-800 dark:text-rose-400">YouBike 伺服器連線失敗</h3>
+            <h3 className="text-base font-bold text-rose-800 dark:text-rose-400">
+              {currentCityConfig.name} YouBike 伺服器連線失敗
+            </h3>
             <p className="text-xs text-rose-500/80 mt-1">
-              {error instanceof Error ? error.message : '無法自台北市政府公開資料平台讀取 YouBike 2.0 站點 JSON 格式，請檢查網路連線。'}
+              {error instanceof Error ? error.message : `無法讀取${currentCityConfig.name}站點即時 JSON 資料，請檢查網路狀態。`}
             </p>
             <button
               onClick={() => refetch()}
@@ -307,6 +323,8 @@ function YouBikeAppContent() {
               districts={districts}
               totalCount={data.length}
               filteredCount={filteredStations.length}
+              selectedCity={selectedCity}
+              onCityChange={handleCityChange}
             />
 
             {/* Mobile Tab Control switcher */}
@@ -367,7 +385,6 @@ function YouBikeAppContent() {
                   centerCoords={centerCoords}
                 />
 
-
                 {/* Station Detail Drawer sliding overlay */}
                 <StationDetail
                   station={selectedStation}
@@ -384,6 +401,7 @@ function YouBikeAppContent() {
       </main>
 
       <AIConsultant
+        currentCityName={currentCityConfig.name}
         currentDistrict={filter.sarea}
         selectedStation={selectedStation}
         stationsInDistrict={stationsInDistrict}
@@ -399,11 +417,11 @@ function YouBikeAppContent() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
               </span>
-              伺服器 API 連線正常
+              {currentCityConfig.name} API 連線正常
             </span>
           </div>
           <div className="flex items-center justify-center gap-4">
-            <span>台北市政府交通局 YouBike 公開資料</span>
+            <span>{currentCityConfig.sourceLabel} YouBike 公開資料</span>
             <div className="flex items-center gap-1">
               <div className="w-5 h-5 rounded bg-[#FFD700] flex items-center justify-center text-[9px] font-black text-slate-800 shadow-inner">2.0</div>
             </div>
