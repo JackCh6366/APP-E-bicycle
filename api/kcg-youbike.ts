@@ -4,7 +4,7 @@ const KCG_API_URL = 'https://openapi.kcg.gov.tw/Api/Service/Get/b4dd9c40-9027-41
 
 export async function processKcgRequest(): Promise<{ status: number; body: any }> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 7000); // 7-second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 12000); // 12-second timeout for Kaohsiung API
 
   try {
     const response = await fetch(KCG_API_URL, {
