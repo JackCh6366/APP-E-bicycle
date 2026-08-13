@@ -1,11 +1,22 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
+export const maxDuration = 30;
+
 // Official New Taipei City YouBike 2.0 Real-time Open Data Dataset URL (Size=2000 to get all stations)
 const NTPC_API_URL = 'https://data.ntpc.gov.tw/api/datasets/010e5b15-3823-4b20-b401-b1cf000550c5/json?page=0&size=2000';
 
+let cachedNtpcData: any = null;
+let lastNtpcFetchTime = 0;
+const CACHE_TTL_MS = 60 * 1000;
+
 export async function processNtpcRequest(): Promise<{ status: number; body: any }> {
+  const now = Date.now();
+  if (cachedNtpcData && now - lastNtpcFetchTime < CACHE_TTL_MS) {
+    return { status: 200, body: cachedNtpcData };
+  }
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 15000); // 15-second timeout
 
   try {
     const response = await fetch(NTPC_API_URL, {
@@ -19,6 +30,7 @@ export async function processNtpcRequest(): Promise<{ status: number; body: any 
     clearTimeout(timeoutId);
 
     if (!response.ok) {
+      if (cachedNtpcData) return { status: 200, body: cachedNtpcData };
       return {
         status: response.status >= 500 ? 502 : response.status,
         body: { error: `新北市 YouBike 伺服器回應異常 (HTTP ${response.status})` },
@@ -26,12 +38,15 @@ export async function processNtpcRequest(): Promise<{ status: number; body: any 
     }
 
     const data = await response.json();
+    cachedNtpcData = data;
+    lastNtpcFetchTime = now;
     return {
       status: 200,
       body: data,
     };
   } catch (error: any) {
     clearTimeout(timeoutId);
+    if (cachedNtpcData) return { status: 200, body: cachedNtpcData };
     if (error.name === 'AbortError') {
       return {
         status: 504,

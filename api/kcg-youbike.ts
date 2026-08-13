@@ -1,12 +1,19 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import https from 'https';
 
+export const maxDuration = 30;
+
 const KCG_API_URLS = [
   'https://api.kcg.gov.tw/api/service/Get/b4dd9c40-9027-4125-8666-06bef1756092',
   'https://openapi.kcg.gov.tw/Api/Service/Get/b4dd9c40-9027-4125-8666-06bef1756092',
 ];
 
-function fetchHttps(url: string, timeoutMs = 12000): Promise<any> {
+// In-memory cache for Vercel lambdas
+let cachedData: any = null;
+let lastFetchTime = 0;
+const CACHE_TTL_MS = 60 * 1000; // 60 seconds cache
+
+function fetchHttps(url: string, timeoutMs = 25000): Promise<any> {
   return new Promise((resolve, reject) => {
     const req = https.get(
       url,
@@ -48,11 +55,18 @@ function fetchHttps(url: string, timeoutMs = 12000): Promise<any> {
 }
 
 export async function processKcgRequest(): Promise<{ status: number; body: any }> {
+  const now = Date.now();
+  if (cachedData && now - lastFetchTime < CACHE_TTL_MS) {
+    return { status: 200, body: cachedData };
+  }
+
   let lastError: any = null;
 
   for (const url of KCG_API_URLS) {
     try {
-      const data = await fetchHttps(url, 12000);
+      const data = await fetchHttps(url, 25000);
+      cachedData = data;
+      lastFetchTime = now;
       return {
         status: 200,
         body: data,
@@ -60,6 +74,11 @@ export async function processKcgRequest(): Promise<{ status: number; body: any }
     } catch (error: any) {
       lastError = error;
     }
+  }
+
+  if (cachedData) {
+    // Return stale cache if live request fails
+    return { status: 200, body: cachedData };
   }
 
   if (lastError?.name === 'AbortError') {
