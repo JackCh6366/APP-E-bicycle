@@ -62,14 +62,15 @@ export function useYouBike(
       try {
         response = await fetchWithTimeout(cityConfig.apiUrl, 10000);
       } catch (err: any) {
-        throw new Error(`無法連線至${cityConfig.name} YouBike API: ${err.message || '網路異常'}`);
-      }
-
-      if (!response.ok) {
-        throw new Error(`無法取得${cityConfig.name} YouBike 即時資料 (HTTP ${response.status})`);
+        throw new Error(`${cityConfig.name}資料暫時無法取得 (${err.message || '網路連線失敗'})`);
       }
 
       const json = await response.json();
+
+      if (!response.ok || (json && json.error)) {
+        const errorDetail = json?.error || `HTTP ${response.status}`;
+        throw new Error(`${cityConfig.name}資料暫時無法取得 (${errorDetail})`);
+      }
       
       // Extract array based on API structure
       let data: any[] = [];
@@ -86,7 +87,7 @@ export function useYouBike(
       }
 
       if (!Array.isArray(data) || data.length === 0) {
-        throw new Error(`${cityConfig.name} API 回傳格式無有效站點資料`);
+        throw new Error(`${cityConfig.name}資料暫時無法取得 (開放資料平台回傳無站點資訊)`);
       }
 
       return data.map((item: any) => {

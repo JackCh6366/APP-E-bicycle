@@ -39,6 +39,37 @@ function devApiMiddleware(): Plugin {
           });
           return;
         }
+
+        if (req.url === '/api/ntpc-youbike' && req.method === 'GET') {
+          try {
+            const module = await server.ssrLoadModule('/api/ntpc-youbike.ts');
+            const result = await module.processNtpcRequest();
+            res.statusCode = result.status;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(result.body));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: '新北市代理端點錯誤: ' + (err.message || '未知錯誤') }));
+          }
+          return;
+        }
+
+        if (req.url === '/api/kcg-youbike' && req.method === 'GET') {
+          try {
+            const module = await server.ssrLoadModule('/api/kcg-youbike.ts');
+            const result = await module.processKcgRequest();
+            res.statusCode = result.status;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(result.body));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: '高雄市代理端點錯誤: ' + (err.message || '未知錯誤') }));
+          }
+          return;
+        }
+
         next();
       });
     },
