@@ -13,7 +13,9 @@ function devApiMiddleware(): Plugin {
     name: 'dev-api-middleware',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (req.url === '/api/analyze' && req.method === 'POST') {
+        const pathname = req.url ? new URL(req.url, 'http://localhost').pathname : '';
+
+        if (pathname === '/api/analyze' && req.method === 'POST') {
           let bodyStr = '';
           req.on('data', (chunk) => {
             bodyStr += chunk;
@@ -40,7 +42,7 @@ function devApiMiddleware(): Plugin {
           return;
         }
 
-        if (req.url === '/api/ntpc-youbike' && req.method === 'GET') {
+        if (pathname === '/api/ntpc-youbike' && req.method === 'GET') {
           try {
             const module = await server.ssrLoadModule('/api/ntpc-youbike.ts');
             const result = await module.processNtpcRequest();
@@ -55,7 +57,7 @@ function devApiMiddleware(): Plugin {
           return;
         }
 
-        if (req.url === '/api/kcg-youbike' && req.method === 'GET') {
+        if (pathname === '/api/kcg-youbike' && req.method === 'GET') {
           try {
             const module = await server.ssrLoadModule('/api/kcg-youbike.ts');
             const result = await module.processKcgRequest();

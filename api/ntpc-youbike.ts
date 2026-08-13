@@ -1,10 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const NTPC_API_URL = 'https://data.ntpc.gov.tw/api/datasets/71CD1490-A2DF-4198-BEF1-318479775E8A/json';
+// Official New Taipei City YouBike 2.0 Real-time Open Data Dataset URL (Size=2000 to get all stations)
+const NTPC_API_URL = 'https://data.ntpc.gov.tw/api/datasets/010e5b15-3823-4b20-b401-b1cf000550c5/json?page=0&size=2000';
 
 export async function processNtpcRequest(): Promise<{ status: number; body: any }> {
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 7000); // 7-second timeout
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8-second timeout
 
   try {
     const response = await fetch(NTPC_API_URL, {
