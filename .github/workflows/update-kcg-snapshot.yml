@@ -1,0 +1,33 @@
+name: Sync Kaohsiung YouBike Snapshot
+
+on:
+  schedule:
+    # Run every 15 minutes
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update-snapshot:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Fetch Latest Kaohsiung YouBike Open Data
+        run: |
+          node scripts/update-kcg-snapshot.js
+
+      - name: Commit and Push Updated Snapshot
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chrono: update Kaohsiung YouBike static snapshot [skip ci]"
+          file_pattern: "public/kcg-youbike-snapshot.json"

@@ -76,6 +76,13 @@ function YouBikeAppContent() {
     return Array.from(unique).sort();
   }, [data]);
 
+  const fetchedAtAgoMinutes = useMemo(() => {
+    const fetchedAtStr = (data as any)?.fetchedAt;
+    if (!fetchedAtStr) return null;
+    const diffMs = Date.now() - new Date(fetchedAtStr).getTime();
+    return Math.max(0, Math.floor(diffMs / (60 * 1000)));
+  }, [data]);
+
   // Handle City Switcher
   const handleCityChange = (newCity: CityKey) => {
     if (newCity === selectedCity) return;
@@ -309,9 +316,15 @@ function YouBikeAppContent() {
               </div>
 
               <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3.5 rounded-2xl shadow-xs">
-                <span className="text-[10px] font-bold text-amber-500 dark:text-amber-400 uppercase tracking-wider block">篩選資訊說明</span>
+                <span className="text-[10px] font-bold text-amber-500 dark:text-amber-400 uppercase tracking-wider block">篩選與更新資訊</span>
                 <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-1 block leading-relaxed">
-                  已自動過濾無車可借或暫停營運之站點。
+                  {fetchedAtAgoMinutes !== null ? (
+                    <span className="text-amber-600 dark:text-amber-400 font-bold">
+                      快照更新：{fetchedAtAgoMinutes === 0 ? '剛剛更新' : `${fetchedAtAgoMinutes} 分鐘前`}
+                    </span>
+                  ) : (
+                    '即時同步：已自動過濾無車或停運站點。'
+                  )}
                 </span>
               </div>
             </div>

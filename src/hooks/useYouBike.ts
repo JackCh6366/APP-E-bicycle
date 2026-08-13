@@ -92,7 +92,7 @@ export function useYouBike(
         throw new Error(`${cityConfig.name}資料暫時無法取得 (開放資料平台回傳無站點資訊)`);
       }
 
-      return data.map((item: any) => {
+      const result = data.map((item: any) => {
         const lat = parseFloat(item.latitude ?? item.lat);
         const lng = parseFloat(item.longitude ?? item.lng);
         
@@ -121,6 +121,12 @@ export function useYouBike(
           distance: dist,
         };
       });
+
+      if (json.fetchedAt) {
+        (result as any).fetchedAt = json.fetchedAt;
+      }
+
+      return result;
     },
     refetchInterval: 30000, // Refetch every 30 seconds
     staleTime: 15000,       // Consider data stale after 15 seconds
