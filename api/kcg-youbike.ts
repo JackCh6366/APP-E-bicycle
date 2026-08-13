@@ -61,37 +61,26 @@ export async function processKcgRequest(): Promise<{ status: number; body: any }
     return { status: 200, body: cachedData };
   }
 
-  let lastError: any = null;
-
-  for (const url of KCG_API_URLS) {
-    try {
-      const data = await fetchHttps(url, 25000);
-      cachedData = data;
-      lastFetchTime = now;
-      return {
-        status: 200,
-        body: data,
-      };
-    } catch (error: any) {
-      lastError = error;
+  try {
+    const data = await Promise.any(
+      KCG_API_URLS.map((url) => fetchHttps(url, 12000))
+    );
+    cachedData = data;
+    lastFetchTime = now;
+    return {
+      status: 200,
+      body: data,
+    };
+  } catch (error: any) {
+    if (cachedData) {
+      // Return stale cache if live request fails
+      return { status: 200, body: cachedData };
     }
-  }
-
-  if (cachedData) {
-    // Return stale cache if live request fails
-    return { status: 200, body: cachedData };
-  }
-
-  if (lastError?.name === 'AbortError') {
     return {
       status: 504,
       body: { error: '高雄市 YouBike 伺服器回應逾時 (Timeout)' },
     };
   }
-  return {
-    status: 500,
-    body: { error: `高雄市 YouBike 代理端點連線失敗: ${lastError?.message || '無法連線'}` },
-  };
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
