@@ -77,7 +77,9 @@ export function useYouBike(
       if (Array.isArray(json)) {
         data = json;
       } else if (json && typeof json === 'object') {
-        if (Array.isArray(json.data?.retVal)) {
+        if (Array.isArray(json.data?.data?.retVal)) {
+          data = json.data.data.retVal;
+        } else if (Array.isArray(json.data?.retVal)) {
           data = json.data.retVal;
         } else if (Array.isArray(json.retVal)) {
           data = json.retVal;
