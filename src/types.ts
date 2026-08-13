@@ -28,7 +28,7 @@ export const CITIES: Record<CityKey, CityConfig> = {
     name: '新北市',
     defaultDistrict: '板橋區',
     defaultCenter: { latitude: 25.0116, longitude: 121.4658 },
-    apiUrl: 'https://data.ntpc.gov.tw/api/datasets/71CD1490-A2DF-4198-BEF1-318479775E8A/json',
+    apiUrl: '/api/ntpc-youbike',
     sourceLabel: '新北市政府開放資料平台',
   },
   kaohsiung: {
@@ -36,7 +36,7 @@ export const CITIES: Record<CityKey, CityConfig> = {
     name: '高雄市',
     defaultDistrict: '新興區',
     defaultCenter: { latitude: 22.6273, longitude: 120.3014 },
-    apiUrl: 'https://openapi.kcg.gov.tw/Api/Service/Get/b4dd9c40-9027-4125-8666-06bef1756092',
+    apiUrl: '/api/kcg-youbike',
     sourceLabel: '高雄市政府交通局 / 開放資料平台',
   },
 };
