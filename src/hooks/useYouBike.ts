@@ -101,9 +101,9 @@ export function useYouBike(
           dist = calculateDistance(userCoords.latitude, userCoords.longitude, lat, lng);
         }
 
-        const availableRent = parseInt(item.available_rent_bikes ?? item.sbi, 10) || 0;
-        const availableReturn = parseInt(item.available_return_bikes ?? item.bemp, 10) || 0;
-        const total = parseInt(item.total ?? item.tot ?? item.Quantity, 10) || 0;
+        const availableRent = parseInt(item.available_rent_bikes ?? item.sbi_quantity ?? item.sbi, 10) || 0;
+        const availableReturn = parseInt(item.available_return_bikes ?? item.bemp_quantity ?? item.bemp, 10) || 0;
+        const total = parseInt(item.total ?? item.tot_quantity ?? item.tot ?? item.Quantity, 10) || 0;
         const actStatus = item.act !== undefined ? String(item.act) : '1';
 
         return {
