@@ -22,9 +22,13 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Fetch Latest Kaohsiung YouBike Open Data
+      - name: Fetch Latest Kaohsiung YouBike Data via TDX API
         env:
-          VERCEL_APP_URL: https://app-e-bicycle.vercel.app
+          # TDX (交通部) API credentials — globally accessible, no IP restrictions
+          # Register free account at: https://tdx.transportdata.tw/
+          # Add Client ID and Secret in: GitHub repo → Settings → Secrets → Actions
+          TDX_CLIENT_ID: ${{ secrets.TDX_CLIENT_ID }}
+          TDX_CLIENT_SECRET: ${{ secrets.TDX_CLIENT_SECRET }}
         run: |
           node scripts/update-kcg-snapshot.js
 
