@@ -24,10 +24,7 @@ jobs:
 
       - name: Fetch Latest Kaohsiung YouBike Open Data
         env:
-          # GitHub Actions IPs are blocked by KCG API (overseas firewall).
-          # We route through our Vercel app (hkg1 / Hong Kong) which can reach KCG API.
-          # Set this to your actual Vercel deployment URL (without trailing slash).
-          VERCEL_APP_URL: ${{ secrets.VERCEL_APP_URL }}
+          VERCEL_APP_URL: https://app-e-bicycle.vercel.app
         run: |
           node scripts/update-kcg-snapshot.js
 

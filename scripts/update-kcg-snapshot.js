@@ -6,9 +6,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // GitHub Actions runner (Azure US East) is blocked by KCG API firewall.
-// Solution: call our Vercel app (deployed in hkg1 / Hong Kong) which CAN reach KCG API.
-// The endpoint ?mode=fetch fetches fresh data and returns it as JSON.
-const VERCEL_APP_URL = process.env.VERCEL_APP_URL;
+// Solution: call our dedicated Vercel proxy endpoint (deployed in hkg1 / Hong Kong) which CAN reach KCG API.
+const VERCEL_APP_URL = process.env.VERCEL_APP_URL || 'https://app-e-bicycle.vercel.app';
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const OUTPUT_FILE = path.join(PUBLIC_DIR, 'kcg-youbike-snapshot.json');
@@ -37,13 +36,8 @@ async function fetchWithTimeout(url, timeoutMs = 25000) {
 }
 
 async function updateSnapshot() {
-  if (!VERCEL_APP_URL) {
-    console.error('[ERROR] 環境變數 VERCEL_APP_URL 未設定。請在 workflow 中設定此變數。');
-    process.exit(1);
-  }
-
-  const fetchUrl = `${VERCEL_APP_URL}/api/kcg-youbike?mode=fetch`;
-  console.log(`[${new Date().toISOString()}] 透過 Vercel proxy 取得高雄市 YouBike 資料...`);
+  const fetchUrl = `${VERCEL_APP_URL}/api/kcg-fetch`;
+  console.log(`[${new Date().toISOString()}] 透過 Vercel hkg1 proxy 取得高雄市 YouBike 資料...`);
   console.log(`呼叫端點: ${fetchUrl}`);
 
   let result;
