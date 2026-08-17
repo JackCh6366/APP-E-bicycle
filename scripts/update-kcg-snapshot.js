@@ -5,24 +5,23 @@ import { fileURLToPath } from 'url';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const KCG_API_URLS = [
-  'https://api.kcg.gov.tw/api/service/Get/b4dd9c40-9027-4125-8666-06bef1756092',
-  'https://openapi.kcg.gov.tw/Api/Service/Get/b4dd9c40-9027-4125-8666-06bef1756092',
-];
+// GitHub Actions runner (Azure US East) is blocked by KCG API firewall.
+// Solution: call our Vercel app (deployed in hkg1 / Hong Kong) which CAN reach KCG API.
+// The endpoint ?mode=fetch fetches fresh data and returns it as JSON.
+const VERCEL_APP_URL = process.env.VERCEL_APP_URL;
 
 const PUBLIC_DIR = path.join(__dirname, '..', 'public');
 const OUTPUT_FILE = path.join(PUBLIC_DIR, 'kcg-youbike-snapshot.json');
 
-async function fetchWithTimeout(url, timeoutMs = 15000) {
+async function fetchWithTimeout(url, timeoutMs = 25000) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const response = await fetch(url, {
       headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        Accept: 'application/json, text/plain, */*',
+        'User-Agent': 'github-actions-snapshot-updater/1.0',
+        Accept: 'application/json',
       },
       signal: controller.signal,
     });
@@ -38,53 +37,38 @@ async function fetchWithTimeout(url, timeoutMs = 15000) {
 }
 
 async function updateSnapshot() {
-  console.log(`[${new Date().toISOString()}] 開始存取高雄市 YouBike 原始 API...`);
-  let rawData = null;
-  let lastError = null;
-
-  for (const url of KCG_API_URLS) {
-    try {
-      console.log(`嘗試連線至: ${url}`);
-      rawData = await fetchWithTimeout(url, 15000);
-      if (rawData) {
-        console.log(`成功由 ${url} 取得資料`);
-        break;
-      }
-    } catch (err) {
-      const msg = err.name === 'AbortError' ? '連線逾時 (Timeout)' : err.message;
-      console.error(`連線至 ${url} 失敗:`, msg);
-      lastError = err;
-    }
+  if (!VERCEL_APP_URL) {
+    console.error('[ERROR] 環境變數 VERCEL_APP_URL 未設定。請在 workflow 中設定此變數。');
+    process.exit(1);
   }
 
-  // Extract station list array
-  let stations = [];
-  if (rawData) {
-    if (Array.isArray(rawData)) {
-      stations = rawData;
-    } else if (rawData && typeof rawData === 'object') {
-      if (Array.isArray(rawData.data?.data?.retVal)) {
-        stations = rawData.data.data.retVal;
-      } else if (Array.isArray(rawData.data?.retVal)) {
-        stations = rawData.data.retVal;
-      } else if (Array.isArray(rawData.retVal)) {
-        stations = rawData.retVal;
-      } else if (Array.isArray(rawData.data)) {
-        stations = rawData.data;
-      }
-    }
+  const fetchUrl = `${VERCEL_APP_URL}/api/kcg-youbike?mode=fetch`;
+  console.log(`[${new Date().toISOString()}] 透過 Vercel proxy 取得高雄市 YouBike 資料...`);
+  console.log(`呼叫端點: ${fetchUrl}`);
+
+  let result;
+  try {
+    result = await fetchWithTimeout(fetchUrl);
+  } catch (err) {
+    const msg = err.name === 'AbortError' ? '連線逾時 (Timeout)' : err.message;
+    console.error(`[ERROR] 呼叫 Vercel endpoint 失敗: ${msg}`);
+    process.exit(1);
   }
+
+  if (result.error) {
+    console.error(`[ERROR] Vercel proxy 回傳錯誤: ${result.error}`);
+    process.exit(1);
+  }
+
+  const stations = result.stations;
 
   if (!stations || stations.length === 0) {
-    console.error(
-      `[ERROR] 無法取得有效的高雄市站點資料 (解析數量: ${stations ? stations.length : 0})。保留現有快照檔案，不安裝空內容。`
-    );
-    if (lastError) console.error('詳細錯誤資訊:', lastError);
+    console.error(`[ERROR] 無法取得有效的高雄市站點資料 (解析數量: 0)。保留現有快照檔案，不寫入空內容。`);
     process.exit(1);
   }
 
   const snapshotPayload = {
-    fetchedAt: new Date().toISOString(),
+    fetchedAt: result.fetchedAt ?? new Date().toISOString(),
     totalStations: stations.length,
     data: stations,
   };
@@ -94,8 +78,9 @@ async function updateSnapshot() {
   }
 
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(snapshotPayload, null, 2), 'utf-8');
-  console.log(`[SUCCESS] 成功更新高雄市靜態快照至 ${OUTPUT_FILE} (包含 ${stations.length} 個站點, 時間: ${snapshotPayload.fetchedAt})`);
+  console.log(
+    `[SUCCESS] 成功更新高雄市靜態快照至 ${OUTPUT_FILE} (包含 ${stations.length} 個站點, 時間: ${snapshotPayload.fetchedAt})`
+  );
 }
 
 updateSnapshot();
-
