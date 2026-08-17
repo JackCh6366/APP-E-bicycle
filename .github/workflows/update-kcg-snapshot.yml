@@ -11,6 +11,9 @@ permissions:
 
 jobs:
   update-snapshot:
+    # DISABLED: KCG API blocks all overseas IPs (GitHub Actions / Vercel).
+    # Re-enable by removing the if: false line below once a viable data source is found.
+    if: false
     runs-on: ubuntu-latest
 
     steps:

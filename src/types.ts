@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type CityKey = 'taipei' | 'newtaipei' | 'kaohsiung';
+export type CityKey = 'taipei' | 'newtaipei' | 'taoyuan';
 
 export interface CityConfig {
   key: CityKey;
@@ -31,13 +31,13 @@ export const CITIES: Record<CityKey, CityConfig> = {
     apiUrl: '/api/ntpc-youbike',
     sourceLabel: '新北市政府開放資料平台',
   },
-  kaohsiung: {
-    key: 'kaohsiung',
-    name: '高雄市',
-    defaultDistrict: '新興區',
-    defaultCenter: { latitude: 22.6273, longitude: 120.3014 },
-    apiUrl: '/api/kcg-youbike',
-    sourceLabel: '高雄市政府交通局 / 開放資料平台',
+  taoyuan: {
+    key: 'taoyuan',
+    name: '桃園市',
+    defaultDistrict: '桃園區',
+    defaultCenter: { latitude: 24.9936, longitude: 121.3010 },
+    apiUrl: '/api/tycg-youbike',
+    sourceLabel: '桃園市政府資料開放平台',
   },
 };
 
