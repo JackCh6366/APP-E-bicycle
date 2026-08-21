@@ -211,24 +211,24 @@ function YouBikeAppContent() {
       )}
 
       {/* 2. Navigation Header */}
-      <nav className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-6 py-3 shadow-sm">
+      <nav className="sticky top-0 z-30 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md border-b border-slate-200 dark:border-slate-800/80 px-3.5 sm:px-6 py-2.5 sm:py-3 shadow-sm">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-[#FFD700] rounded-xl flex items-center justify-center shadow-inner text-slate-800">
-              <Bike className="w-6 h-6 stroke-[2.2]" />
+          <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+            <div className="w-9 h-9 sm:w-10 sm:h-10 bg-[#FFD700] rounded-xl flex items-center justify-center shadow-inner text-slate-800 shrink-0">
+              <Bike className="w-5 h-5 sm:w-6 sm:h-6 stroke-[2.2]" />
             </div>
-            <div>
-              <h1 className="text-lg font-bold text-slate-800 dark:text-slate-50 tracking-tight flex items-center gap-1.5">
-                Jack的youbike小幫手
-                <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400">即時 Live</span>
+            <div className="min-w-0">
+              <h1 className="text-base sm:text-lg font-bold text-slate-800 dark:text-slate-50 tracking-tight flex items-center gap-1.5 truncate">
+                <span className="truncate">Jack的youbike小幫手</span>
+                <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 shrink-0">即時 Live</span>
               </h1>
-              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">
+              <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium truncate">
                 {currentCityConfig.name} YouBike 2.0 即時查詢與 AI 智慧諮詢
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {/* Realtime API Data Status Indicator */}
             <button
               onClick={() => {
@@ -236,7 +236,8 @@ function YouBikeAppContent() {
                 showToast(`正在獲取最新 ${currentCityConfig.name} YouBike 站點資訊...`);
               }}
               disabled={isFetching}
-              className="p-2.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 border border-slate-100 dark:border-slate-800 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="p-2 sm:p-2.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 border border-slate-100 dark:border-slate-800 transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              title="同步最新資料"
             >
               <RefreshCw className={`w-4 h-4 ${isFetching ? 'animate-spin' : ''}`} />
               <span className="hidden sm:inline text-xs font-bold">同步資料</span>
@@ -245,7 +246,7 @@ function YouBikeAppContent() {
             {/* Dark Mode Switcher */}
             <button
               onClick={() => setDarkMode(!darkMode)}
-              className="p-2.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 border border-slate-100 dark:border-slate-800 transition-all cursor-pointer"
+              className="p-2 sm:p-2.5 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/80 border border-slate-100 dark:border-slate-800 transition-all cursor-pointer"
               aria-label="切換深色模式"
             >
               {darkMode ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
@@ -255,13 +256,13 @@ function YouBikeAppContent() {
       </nav>
 
       {/* 3. Main Dashboard Body */}
-      <main className="max-w-7xl mx-auto p-4 md:py-6 space-y-4">
+      <main className="max-w-7xl mx-auto p-3 sm:p-4 md:py-6 space-y-3 sm:space-y-4">
         
         {/* Loading Indicator */}
         {isLoading && (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <div className="w-12 h-12 rounded-full border-4 border-amber-400 border-t-transparent animate-spin mb-4"></div>
-            <h3 className="text-base font-bold text-slate-800 dark:text-slate-100">
+          <div className="flex flex-col items-center justify-center py-16 sm:py-20 text-center">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-4 border-amber-400 border-t-transparent animate-spin mb-4"></div>
+            <h3 className="text-sm sm:text-base font-bold text-slate-800 dark:text-slate-100">
               正在下載【{currentCityConfig.name}】YouBike 2.0 即時車位資料...
             </h3>
             <p className="text-xs text-slate-400 mt-1">連線中，請稍候</p>
@@ -270,11 +271,11 @@ function YouBikeAppContent() {
 
         {/* Error Handling State */}
         {isError && (
-          <div className="flex flex-col items-center justify-center py-16 px-4 text-center rounded-2xl bg-rose-50 dark:bg-rose-950/10 border border-rose-100 dark:border-rose-900/40 max-w-xl mx-auto">
-            <div className="p-4 rounded-full bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 mb-4">
-              <AlertTriangle className="w-8 h-8" />
+          <div className="flex flex-col items-center justify-center py-12 sm:py-16 px-4 text-center rounded-2xl bg-rose-50 dark:bg-rose-950/10 border border-rose-100 dark:border-rose-900/40 max-w-xl mx-auto">
+            <div className="p-3 sm:p-4 rounded-full bg-rose-100 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 mb-3 sm:mb-4">
+              <AlertTriangle className="w-6 h-6 sm:w-8 sm:h-8" />
             </div>
-            <h3 className="text-base font-bold text-rose-800 dark:text-rose-400">
+            <h3 className="text-sm sm:text-base font-bold text-rose-800 dark:text-rose-400">
               {currentCityConfig.name} YouBike 伺服器連線失敗
             </h3>
             <p className="text-xs text-rose-500/80 mt-1">
@@ -282,7 +283,7 @@ function YouBikeAppContent() {
             </p>
             <button
               onClick={() => refetch()}
-              className="mt-5 px-6 py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
+              className="mt-4 sm:mt-5 px-5 sm:px-6 py-2 sm:py-2.5 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold transition-all shadow-md active:scale-95 cursor-pointer"
             >
               重新整理 API 資料
             </button>
@@ -290,40 +291,40 @@ function YouBikeAppContent() {
         )}
 
         {!isLoading && !isError && data && (
-          <div className="space-y-4">
+          <div className="space-y-3 sm:space-y-4">
             
             {/* Quick Overview Real-time Statistics Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3.5 rounded-2xl shadow-xs">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">目前營運站數</span>
-                <span className="text-xl font-black font-mono text-slate-800 dark:text-slate-50 mt-1 block">
-                  {stats.activeCount} <span className="text-xs text-slate-400 font-sans">/ {stats.totalCount} 站</span>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-2.5 sm:gap-3">
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-2.5 sm:p-3.5 rounded-2xl shadow-xs">
+                <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">目前營運站數</span>
+                <span className="text-lg sm:text-xl font-black font-mono text-slate-800 dark:text-slate-50 mt-0.5 sm:mt-1 block">
+                  {stats.activeCount} <span className="text-[10px] sm:text-xs text-slate-400 font-sans">/ {stats.totalCount} 站</span>
                 </span>
               </div>
               
-              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3.5 rounded-2xl shadow-xs">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">篩選後總車數</span>
-                <span className="text-xl font-black font-mono text-emerald-600 dark:text-emerald-400 mt-1 block">
-                  {stats.filteredBikes.toLocaleString()} <span className="text-xs text-emerald-400/80 font-sans">輛可用</span>
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-2.5 sm:p-3.5 rounded-2xl shadow-xs">
+                <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">篩選後總車數</span>
+                <span className="text-lg sm:text-xl font-black font-mono text-emerald-600 dark:text-emerald-400 mt-0.5 sm:mt-1 block">
+                  {stats.filteredBikes.toLocaleString()} <span className="text-[10px] sm:text-xs text-emerald-400/80 font-sans">輛可用</span>
                 </span>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3.5 rounded-2xl shadow-xs">
-                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">篩選後可還位</span>
-                <span className="text-xl font-black font-mono text-blue-600 dark:text-blue-400 mt-1 block">
-                  {stats.filteredSlots.toLocaleString()} <span className="text-xs text-blue-400/80 font-sans">個空位</span>
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-2.5 sm:p-3.5 rounded-2xl shadow-xs">
+                <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">篩選後可還位</span>
+                <span className="text-lg sm:text-xl font-black font-mono text-blue-600 dark:text-blue-400 mt-0.5 sm:mt-1 block">
+                  {stats.filteredSlots.toLocaleString()} <span className="text-[10px] sm:text-xs text-blue-400/80 font-sans">個空位</span>
                 </span>
               </div>
 
-              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-3.5 rounded-2xl shadow-xs">
-                <span className="text-[10px] font-bold text-amber-500 dark:text-amber-400 uppercase tracking-wider block">篩選與更新資訊</span>
-                <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-1 block leading-relaxed">
+              <div className="bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-2.5 sm:p-3.5 rounded-2xl shadow-xs">
+                <span className="text-[9px] sm:text-[10px] font-bold text-amber-500 dark:text-amber-400 uppercase tracking-wider block">篩選與更新資訊</span>
+                <span className="text-[10px] sm:text-[11px] font-semibold text-slate-500 dark:text-slate-400 mt-0.5 sm:mt-1 block leading-tight sm:leading-relaxed">
                   {fetchedAtAgoMinutes !== null ? (
                     <span className="text-amber-600 dark:text-amber-400 font-bold">
-                      快照更新：{fetchedAtAgoMinutes === 0 ? '剛剛更新' : `${fetchedAtAgoMinutes} 分鐘前`}
+                      快照：{fetchedAtAgoMinutes === 0 ? '剛剛更新' : `${fetchedAtAgoMinutes}分鐘前`}
                     </span>
                   ) : (
-                    '即時同步：已自動過濾無車或停運站點。'
+                    '即時過濾停運站點'
                   )}
                 </span>
               </div>
@@ -341,10 +342,10 @@ function YouBikeAppContent() {
             />
 
             {/* Mobile Tab Control switcher */}
-            <div className="flex md:hidden bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-800 p-1 rounded-xl shadow-xs">
+            <div className="sticky top-[53px] z-20 flex md:hidden bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-slate-800 p-1 rounded-xl shadow-xs">
               <button
                 onClick={() => setMobileTab('map')}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   mobileTab === 'map'
                     ? 'bg-emerald-500 text-white shadow-xs'
                     : 'text-slate-500 dark:text-slate-400'
@@ -355,7 +356,7 @@ function YouBikeAppContent() {
               </button>
               <button
                 onClick={() => setMobileTab('list')}
-                className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
+                className={`flex-1 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
                   mobileTab === 'list'
                     ? 'bg-emerald-500 text-white shadow-xs'
                     : 'text-slate-500 dark:text-slate-400'
@@ -367,7 +368,7 @@ function YouBikeAppContent() {
             </div>
 
             {/* Main Content Layout Block: List side-by-side with Map on Desktop */}
-            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 h-[calc(100vh-270px)] md:h-[620px]">
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-3 sm:gap-4 h-[500px] sm:h-[580px] md:h-[620px] lg:h-[680px]">
               
               {/* Station List Column */}
               <div
@@ -386,7 +387,7 @@ function YouBikeAppContent() {
 
               {/* Map Column */}
               <div
-                className={`relative md:col-span-8 h-full min-h-[380px] md:min-h-0 ${
+                className={`relative md:col-span-8 h-full min-h-[350px] md:min-h-0 ${
                   mobileTab === 'map' ? 'block' : 'hidden md:block'
                 }`}
               >
@@ -421,9 +422,9 @@ function YouBikeAppContent() {
       />
 
       {/* 4. Footer */}
-      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800/80 py-4 px-6 text-[11px] text-slate-500 dark:text-slate-400 mt-auto shrink-0 transition-colors">
-        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-3 text-center sm:text-left">
-          <div className="flex flex-wrap items-center justify-center gap-4">
+      <footer className="bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800/80 py-3.5 sm:py-4 px-4 sm:px-6 text-[11px] text-slate-500 dark:text-slate-400 mt-auto shrink-0 transition-colors">
+        <div className="max-w-7xl mx-auto flex flex-col sm:flex-row items-center justify-between gap-2.5 sm:gap-3 text-center sm:text-left">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
             <span>更新頻率：每 30 秒自動更新 (TanStack Query)</span>
             <span className="flex items-center gap-1.5 justify-center">
               <span className="relative flex h-2 w-2">
@@ -433,7 +434,7 @@ function YouBikeAppContent() {
               {currentCityConfig.name} API 連線正常
             </span>
           </div>
-          <div className="flex items-center justify-center gap-4">
+          <div className="flex items-center justify-center gap-3 sm:gap-4">
             <span>{currentCityConfig.sourceLabel} YouBike 公開資料</span>
             <div className="flex items-center gap-1">
               <div className="w-5 h-5 rounded bg-[#FFD700] flex items-center justify-center text-[9px] font-black text-slate-800 shadow-inner">2.0</div>

@@ -70,3 +70,21 @@
   background: transparent !important;
   border: none !important;
 }
+
+/* RWD Utilities for smooth scrolling without ugly scrollbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Touch active feedback for mobile */
+@media (max-width: 640px) {
+  .leaflet-touch .leaflet-control-zoom {
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+  }
+}
+

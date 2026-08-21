@@ -231,7 +231,7 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
       {/* 1. Floating Toggle Button */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className={`fixed bottom-6 right-6 z-40 flex items-center gap-2 px-4 py-3.5 rounded-full shadow-2xl transition-all duration-300 transform active:scale-95 ${
+        className={`fixed bottom-4 right-4 sm:bottom-6 sm:right-6 z-40 flex items-center gap-2 px-3.5 py-3 sm:px-4 sm:py-3.5 rounded-full shadow-2xl transition-all duration-300 transform active:scale-95 cursor-pointer ${
           isOpen
             ? 'bg-slate-800 dark:bg-slate-100 text-white dark:text-slate-900 scale-90'
             : 'bg-[#FFD700] hover:bg-[#ffdf1a] text-slate-900 font-bold hover:shadow-amber-500/20 scale-100'
@@ -241,19 +241,19 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
         {isOpen ? (
           <>
             <X className="w-5 h-5" />
-            <span className="text-xs font-bold">關閉諮詢</span>
+            <span className="text-xs font-bold hidden sm:inline">關閉諮詢</span>
           </>
         ) : (
           <>
             <div className="relative">
-              <MessageSquare className="w-5 h-5 fill-current" />
-              <span className="absolute -top-1.5 -right-1.5 flex h-2 w-2">
+              <MessageSquare className="w-4 h-4 sm:w-5 sm:h-5 fill-current" />
+              <span className="absolute -top-1 -right-1 flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
               </span>
             </div>
-            <span className="text-sm font-black tracking-tight">AI 即時諮詢</span>
-            <div className="bg-slate-900/10 dark:bg-white/10 px-1.5 py-0.5 rounded text-[10px] font-extrabold flex items-center gap-0.5">
+            <span className="text-xs sm:text-sm font-black tracking-tight">AI 諮詢</span>
+            <div className="bg-slate-900/10 dark:bg-white/10 px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] font-extrabold flex items-center gap-0.5">
               <Sparkles className="w-2.5 h-2.5 animate-pulse text-amber-600" />
               Live
             </div>
@@ -263,10 +263,10 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
 
       {/* 2. Chat Window Panel */}
       <div
-        className={`fixed inset-x-4 bottom-24 md:inset-x-auto md:right-6 md:bottom-24 md:w-96 z-40 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden transition-all duration-300 transform origin-bottom-right ${
+        className={`fixed inset-x-2 bottom-16 sm:inset-x-auto sm:right-6 sm:bottom-24 sm:w-96 z-50 bg-white dark:bg-slate-900 rounded-3xl shadow-2xl border border-slate-200 dark:border-slate-800 flex flex-col overflow-hidden transition-all duration-300 transform origin-bottom-right ${
           isOpen ? 'translate-y-0 opacity-100 scale-100' : 'translate-y-12 opacity-0 pointer-events-none scale-95'
         }`}
-        style={{ height: 'min(580px, calc(100vh - 130px))' }}
+        style={{ height: 'min(560px, calc(100dvh - 90px))' }}
       >
         {/* Chat Header */}
         <div className="bg-slate-900 dark:bg-slate-950 p-4 text-white relative">

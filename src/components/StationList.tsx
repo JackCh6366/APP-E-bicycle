@@ -83,7 +83,7 @@ export default function StationList({
                   key={station.sno}
                   id={`station-card-${station.sno}`}
                   onClick={() => onSelectStation(station)}
-                  className={`group relative flex flex-col p-4 rounded-xl border transition-all duration-200 cursor-pointer text-left ${
+                  className={`group relative flex flex-col p-3.5 sm:p-4 rounded-xl border transition-all duration-200 cursor-pointer text-left ${
                     isSelected
                       ? 'bg-amber-50/40 dark:bg-amber-950/10 border-amber-400 shadow-md shadow-amber-400/5'
                       : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800 hover:border-amber-200 dark:hover:border-amber-800/50 hover:bg-amber-50/20 dark:hover:bg-amber-950/5 hover:shadow-xs'
@@ -96,37 +96,37 @@ export default function StationList({
 
                   {/* Top: Station name and administrative area */}
                   <div className="flex items-start justify-between gap-2">
-                    <div>
+                    <div className="min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400">
+                        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 shrink-0">
                           {station.sarea}
                         </span>
                         {station.distance !== undefined && (
-                          <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/15 px-1.5 py-0.5 rounded flex items-center gap-0.5">
+                          <span className="text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-500/15 px-1.5 py-0.5 rounded flex items-center gap-0.5 shrink-0">
                             <Navigation className="w-2.5 h-2.5 rotate-45 fill-current" />
                             {formatDistance(station.distance)}
                           </span>
                         )}
                         {isSuspended && (
-                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500 text-white animate-pulse">
+                          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-rose-500 text-white animate-pulse shrink-0">
                             暫停營運
                           </span>
                         )}
                       </div>
-                      <h4 className="text-[15px] font-bold text-slate-800 dark:text-slate-200 mt-1.5 group-hover:text-amber-500 dark:group-hover:text-amber-400 transition-colors">
+                      <h4 className="text-sm sm:text-[15px] font-bold text-slate-800 dark:text-slate-200 mt-1.5 group-hover:text-amber-500 dark:group-hover:text-amber-400 transition-colors leading-tight">
                         {station.sna}
                       </h4>
                     </div>
 
                     {/* Actions panel */}
-                    <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 opacity-90 sm:opacity-80 group-hover:opacity-100 transition-opacity shrink-0">
                       <button
-                        title="在地图上查看"
+                        title="在地圖上查看"
                         onClick={(e) => {
                           e.stopPropagation();
                           onFocusStation(station);
                         }}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-all border border-transparent hover:border-amber-200/30"
+                        className="p-1.5 rounded-lg text-slate-400 hover:text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-500/10 transition-all border border-transparent hover:border-amber-200/30 cursor-pointer"
                       >
                         <Map className="w-4 h-4" />
                       </button>
@@ -149,23 +149,23 @@ export default function StationList({
                   </p>
 
                   {/* Bottom: Availability Numbers */}
-                  <div className="grid grid-cols-2 gap-2 mt-3.5 pt-3 border-t border-slate-100/60 dark:border-slate-800/60">
-                    <div className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all ${rentBgClass}`}>
-                      <div className="flex items-center gap-1.5">
+                  <div className="grid grid-cols-2 gap-2 mt-3 pt-2.5 sm:pt-3 border-t border-slate-100/60 dark:border-slate-800/60">
+                    <div className={`flex items-center justify-between px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all ${rentBgClass}`}>
+                      <div className="flex items-center gap-1 sm:gap-1.5">
                         <Bike className="w-3.5 h-3.5" />
-                        <span className="text-[11px] font-semibold">可借車輛</span>
+                        <span className="text-[10px] sm:text-[11px] font-semibold">可借</span>
                       </div>
-                      <span className="text-sm font-black font-mono">
+                      <span className="text-xs sm:text-sm font-black font-mono">
                         {isSuspended ? '-' : rentCount}
                       </span>
                     </div>
 
-                    <div className={`flex items-center justify-between px-3 py-2 rounded-xl transition-all ${returnBgClass}`}>
-                      <div className="flex items-center gap-1.5">
+                    <div className={`flex items-center justify-between px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl transition-all ${returnBgClass}`}>
+                      <div className="flex items-center gap-1 sm:gap-1.5">
                         <span className="text-xs">🅿️</span>
-                        <span className="text-[11px] font-semibold">可還空位</span>
+                        <span className="text-[10px] sm:text-[11px] font-semibold">可還</span>
                       </div>
-                      <span className="text-sm font-black font-mono">
+                      <span className="text-xs sm:text-sm font-black font-mono">
                         {isSuspended ? '-' : returnCount}
                       </span>
                     </div>
