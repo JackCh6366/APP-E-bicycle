@@ -57,6 +57,21 @@ function devApiMiddleware(): Plugin {
           return;
         }
 
+        if (pathname === '/api/tycg-youbike' && req.method === 'GET') {
+          try {
+            const module = await server.ssrLoadModule('/api/tycg-youbike.ts');
+            const result = await module.processTycgRequest();
+            res.statusCode = result.status;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify(result.body));
+          } catch (err: any) {
+            res.statusCode = 500;
+            res.setHeader('Content-Type', 'application/json');
+            res.end(JSON.stringify({ error: '桃園市代理端點錯誤: ' + (err.message || '未知錯誤') }));
+          }
+          return;
+        }
+
         if (pathname === '/api/kcg-youbike' && req.method === 'GET') {
           try {
             const module = await server.ssrLoadModule('/api/kcg-youbike.ts');
