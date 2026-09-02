@@ -4,7 +4,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 const SERVICE_WHITELIST: Record<string, { provider: 'gemini' | 'nvidia'; model: string; name: string }> = {
   gemini: {
     provider: 'gemini',
-    model: 'gemini-3.1-flash-lite',
+    model: 'gemini-3.5-flash-lite',
     name: 'Google Gemini',
   },
   nvidia: {

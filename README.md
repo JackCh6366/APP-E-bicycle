@@ -6,7 +6,7 @@
 - **Frontend**: React + Vite + TailwindCSS + Leaflet
 - **Backend API**: Vercel Serverless Function (`/api/analyze.ts`)
 - **AI 服務支援**:
-  - Google Gemini (`gemini-3.1-flash-lite`)
+  - Google Gemini (`gemini-3.5-flash-lite`)
   - NVIDIA (`nvidia/nemotron-3-ultra-550b-a55b`)
   - Meta (`meta/llama-3.3-70b-instruct`)
 
