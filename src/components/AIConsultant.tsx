@@ -104,7 +104,7 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
 
       const systemInstruction = `你是一位專業、親切且幽默的「${currentCityName} YouBike 2.0 AI 智慧諮詢專員」。請始終使用「繁體中文（台灣繁體）」回覆，語氣保持溫暖積極，充分利用即時站點資料與費率速查提供準確解答，使用精美的 Markdown 排版。`;
 
-      const historyText = messages.slice(1).map(msg => `${msg.role === 'user' ? '使用者' : 'AI 專員'}: ${msg.text}`).join('\n');
+      const historyText = messages.slice(1).slice(-8).map(msg => `${msg.role === 'user' ? '使用者' : 'AI 專員'}: ${msg.text}`).join('\n');
 
       const compiledPrompt = `${systemInstruction}\n\n${contextInfo}\n${guideInfo}\n\n${historyText ? `【對話歷史】\n${historyText}\n\n` : ''}使用者最新詢問：${textToSend}`;
 
@@ -315,7 +315,7 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
               onChange={(e) => setSelectedService(e.target.value as 'gemini' | 'nvidia' | 'meta')}
               className="bg-slate-800 dark:bg-slate-900 text-white text-[11px] font-semibold px-2 py-1 rounded-md border border-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer w-full text-right"
             >
-              <option value="gemini">Google Gemini (3.1 Flash Lite)</option>
+              <option value="gemini">Google Gemini (3.5 Flash Lite)</option>
               <option value="nvidia">NVIDIA (Nemotron 3 Ultra)</option>
               <option value="meta">Meta (Llama 3.3 70B)</option>
             </select>
@@ -442,7 +442,7 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
             </button>
           </form>
           <div className="flex items-center justify-between mt-2 text-[9px] text-slate-400 px-1">
-            <span>Powered by {selectedService === 'gemini' ? 'Google Gemini 3.1 Flash Lite' : selectedService === 'nvidia' ? 'NVIDIA Nemotron 3 Ultra' : 'Meta Llama 3.3 70B'}</span>
+            <span>Powered by {selectedService === 'gemini' ? 'Google Gemini 3.5 Flash Lite' : selectedService === 'nvidia' ? 'NVIDIA Nemotron 3 Ultra' : 'Meta Llama 3.3 70B'}</span>
             <span className="flex items-center gap-0.5">
               回車鍵傳送 <CornerDownLeft className="w-2.5 h-2.5" />
             </span>

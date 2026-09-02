@@ -81,10 +81,10 @@ export async function processAnalyzeRequest(
     };
   }
 
-  if (prompt.length > 2000) {
+  if (prompt.length > 12000) {
     return {
       status: 400,
-      body: { error: `查詢內容超出長度限制（當前 ${prompt.length} 字，上限 2000 字）。` },
+      body: { error: `查詢內容超出長度限制（當前 ${prompt.length} 字，上限 12000 字）。` },
     };
   }
 
@@ -94,11 +94,11 @@ export async function processAnalyzeRequest(
 
   try {
     if (serviceConfig.provider === 'gemini') {
-      const apiKey = process.env.GEMINI_API_KEY;
+      const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
       if (!apiKey) {
         return {
           status: 500,
-          body: { error: '伺服器端未設定 GEMINI_API_KEY 環境變數。' },
+          body: { error: '伺服器端未設定 GEMINI_API_KEY 或 GOOGLE_GENERATIVE_AI_API_KEY 環境變數。' },
         };
       }
 
@@ -119,19 +119,23 @@ export async function processAnalyzeRequest(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const upstreamMsg = errorData?.error?.message || response.statusText;
         return {
           status: response.status >= 500 ? 502 : 400,
-          body: { error: 'Google Gemini 服務暫時無法處理請求，請稍後再試。' },
+          body: { error: `Google Gemini 服務回應錯誤 (${response.status}): ${upstreamMsg}` },
         };
       }
 
       const data = await response.json();
-      const replyText = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      const candidate = data?.candidates?.[0];
+      const replyText = candidate?.content?.parts?.[0]?.text;
 
       if (!replyText) {
+        const finishReason = candidate?.finishReason || 'UNKNOWN';
         return {
           status: 500,
-          body: { error: 'Google Gemini 未能產生有效回應。' },
+          body: { error: `Google Gemini 未能產生有效回應 (未取得內文，原因: ${finishReason})。` },
         };
       }
 
@@ -167,9 +171,11 @@ export async function processAnalyzeRequest(
       clearTimeout(timeoutId);
 
       if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        const upstreamMsg = errorData?.error?.message || errorData?.detail || response.statusText;
         return {
           status: response.status >= 500 ? 502 : 400,
-          body: { error: `${serviceConfig.name} 服務暫時無法處理請求，請稍後再試。` },
+          body: { error: `${serviceConfig.name} 服務回應錯誤 (${response.status}): ${upstreamMsg}` },
         };
       }
 
@@ -204,7 +210,7 @@ export async function processAnalyzeRequest(
 
     return {
       status: 500,
-      body: { error: '處理 AI 諮詢請求時發生伺服器內部錯誤。' },
+      body: { error: `處理 AI 諮詢請求時發生伺服器內部錯誤：${error.message || '未知錯誤'}` },
     };
   }
 }
