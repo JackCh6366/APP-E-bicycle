@@ -317,7 +317,7 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
             >
               <option value="gemini">Google Gemini (3.5 Flash Lite)</option>
               <option value="nvidia">NVIDIA (Nemotron 3 Ultra)</option>
-              <option value="meta">Meta (Llama 3.3 70B)</option>
+              <option value="meta">Meta (Llama 3.2 11B)</option>
             </select>
           </div>
 
@@ -442,7 +442,7 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
             </button>
           </form>
           <div className="flex items-center justify-between mt-2 text-[9px] text-slate-400 px-1">
-            <span>Powered by {selectedService === 'gemini' ? 'Google Gemini 3.5 Flash Lite' : selectedService === 'nvidia' ? 'NVIDIA Nemotron 3 Ultra' : 'Meta Llama 3.3 70B'}</span>
+            <span>Powered by {selectedService === 'gemini' ? 'Google Gemini 3.5 Flash Lite' : selectedService === 'nvidia' ? 'NVIDIA Nemotron 3 Ultra' : 'Meta Llama 3.2 11B'}</span>
             <span className="flex items-center gap-0.5">
               回車鍵傳送 <CornerDownLeft className="w-2.5 h-2.5" />
             </span>
