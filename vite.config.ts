@@ -5,8 +5,8 @@ import { defineConfig, Plugin } from 'vite';
 import dotenv from 'dotenv';
 
 // Load local environment variables for Vite dev server
-dotenv.config({ path: '.env.local' });
-dotenv.config();
+dotenv.config({ path: '.env.local', quiet: true });
+dotenv.config({ quiet: true });
 
 function devApiMiddleware(): Plugin {
   return {
