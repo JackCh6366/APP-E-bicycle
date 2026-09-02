@@ -60,77 +60,6 @@ function isQuotaError(errorText: string): boolean {
   );
 }
 
-async function callNvidiaApi(
-  model: string,
-  prompt: string,
-  signal: AbortSignal,
-  serviceName: string
-): Promise<{ status: number; body: { reply?: string; error?: string } }> {
-  const apiKey = process.env.NVIDIA_API_KEY;
-  if (!apiKey) {
-    console.error(`[${serviceName}] NVIDIA_API_KEY is not set on server.`);
-    return {
-      status: 500,
-      body: { error: '伺服器端未設定 NVIDIA_API_KEY 環境變數。' },
-    };
-  }
-
-  const nvidiaUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
-  const response = await fetch(nvidiaUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`,
-    },
-    signal: signal,
-    body: JSON.stringify({
-      model: model,
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.7,
-      max_tokens: 1024,
-    }),
-  });
-
-  if (!response.ok) {
-    const errorText = await response.text().catch(() => '');
-    console.error(`[${serviceName} API Error] HTTP ${response.status}:`, errorText);
-
-    let upstreamMsg = errorText;
-    try {
-      const parsed = JSON.parse(errorText);
-      upstreamMsg = parsed?.error?.message || parsed?.detail || errorText;
-    } catch (_) {}
-
-    if (isQuotaError(errorText) || response.status === 429) {
-      return {
-        status: 429,
-        body: { error: 'AI 服務目前使用量過大，請稍後再試。' },
-      };
-    }
-
-    return {
-      status: response.status >= 500 ? 502 : 400,
-      body: { error: `${serviceName} 服務回應錯誤 (${response.status}): ${upstreamMsg}` },
-    };
-  }
-
-  const data = await response.json();
-  const replyText = data?.choices?.[0]?.message?.content;
-
-  if (!replyText) {
-    console.error(`[${serviceName} API Warning] Empty reply text returned:`, JSON.stringify(data));
-    return {
-      status: 500,
-      body: { error: `${serviceName} 未能產生有效回應。` },
-    };
-  }
-
-  return {
-    status: 200,
-    body: { reply: replyText },
-  };
-}
-
 export async function processAnalyzeRequest(
   service: string,
   prompt: string,
@@ -161,10 +90,10 @@ export async function processAnalyzeRequest(
     };
   }
 
-  if (prompt.length > 12000) {
+  if (prompt.length > 2000) {
     return {
       status: 400,
-      body: { error: `查詢內容超出長度限制（當前 ${prompt.length} 字，上限 12000 字）。` },
+      body: { error: `查詢內容超出長度限制（當前 ${prompt.length} 字，上限 2000 字）。` },
     };
   }
 
@@ -176,8 +105,10 @@ export async function processAnalyzeRequest(
     if (serviceConfig.provider === 'gemini') {
       const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
       if (!apiKey) {
-        console.error('[Google Gemini] GEMINI_API_KEY is not set on server. Triggering NVIDIA fallback...');
-        return await callNvidiaApi('meta/llama-3.2-11b-vision-instruct', prompt, controller.signal, 'NVIDIA (備援)');
+        return {
+          status: 500,
+          body: { error: '伺服器端未設定 GEMINI_API_KEY 環境變數。' },
+        };
       }
 
       const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${serviceConfig.model}:generateContent?key=${apiKey}`;
@@ -213,15 +144,6 @@ export async function processAnalyzeRequest(
           };
         }
 
-        // Auto failover if Google API blocks the request due to user location / regional policy
-        if (upstreamMsg.includes('User location is not supported') || upstreamMsg.includes('location') || response.status === 400) {
-          console.warn('[Google Gemini Region Block] Triggering automatic failover to NVIDIA...');
-          const fallbackRes = await callNvidiaApi('meta/llama-3.2-11b-vision-instruct', prompt, controller.signal, 'NVIDIA (自動備援)');
-          if (fallbackRes.status === 200) {
-            return fallbackRes;
-          }
-        }
-
         return {
           status: response.status >= 500 ? 502 : 400,
           body: { error: `Google Gemini 服務回應錯誤 (${response.status}): ${upstreamMsg}` },
@@ -246,9 +168,70 @@ export async function processAnalyzeRequest(
         body: { reply: replyText },
       };
     } else if (serviceConfig.provider === 'nvidia') {
-      const res = await callNvidiaApi(serviceConfig.model, prompt, controller.signal, serviceConfig.name);
+      const apiKey = process.env.NVIDIA_API_KEY;
+      if (!apiKey) {
+        return {
+          status: 500,
+          body: { error: '伺服器端未設定 NVIDIA_API_KEY 環境變數。' },
+        };
+      }
+
+      const nvidiaUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
+      const response = await fetch(nvidiaUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          model: serviceConfig.model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.7,
+          max_tokens: 1024,
+        }),
+      });
+
       clearTimeout(timeoutId);
-      return res;
+
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        console.error(`[${serviceConfig.name} API Error] HTTP ${response.status}:`, errorText);
+
+        let upstreamMsg = errorText;
+        try {
+          const parsed = JSON.parse(errorText);
+          upstreamMsg = parsed?.error?.message || parsed?.detail || errorText;
+        } catch (_) {}
+
+        if (isQuotaError(errorText) || response.status === 429) {
+          return {
+            status: 429,
+            body: { error: 'AI 服務目前使用量過大，請稍後再試。' },
+          };
+        }
+
+        return {
+          status: response.status >= 500 ? 502 : 400,
+          body: { error: `${serviceConfig.name} 服務回應錯誤 (${response.status}): ${upstreamMsg}` },
+        };
+      }
+
+      const data = await response.json();
+      const replyText = data?.choices?.[0]?.message?.content;
+
+      if (!replyText) {
+        console.error(`[${serviceConfig.name} API Warning] Empty reply text returned:`, JSON.stringify(data));
+        return {
+          status: 500,
+          body: { error: `${serviceConfig.name} 未能產生有效回應。` },
+        };
+      }
+
+      return {
+        status: 200,
+        body: { reply: replyText },
+      };
     }
 
     return {
