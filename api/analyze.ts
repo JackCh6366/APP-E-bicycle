@@ -95,10 +95,10 @@ export async function processAnalyzeRequest(
     };
   }
 
-  if (prompt.length > 12000) {
+  if (prompt.length > 6000) {
     return {
       status: 400,
-      body: { error: `查詢內容超出長度限制（當前 ${prompt.length} 字，上限 12000 字）。` },
+      body: { error: `查詢內容超出長度限制（當前 ${prompt.length} 字，上限 6000 字）。` },
     };
   }
 
@@ -193,7 +193,7 @@ export async function processAnalyzeRequest(
           model: serviceConfig.model,
           messages: [{ role: 'user', content: prompt }],
           temperature: 0.7,
-          max_tokens: 1024,
+          max_tokens: 2048,
         }),
       });
 

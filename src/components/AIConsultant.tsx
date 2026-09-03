@@ -107,7 +107,22 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
           ? `你是一位專業、注重數據準確度的「${currentCityName} YouBike 2.0 智慧諮詢專員」。\n請遵守以下原則：\n1. 請一律使用「繁體中文（台灣繁體）」回覆，禁止使用簡體字。\n2. 若有即時站點資料，務必優先且精準引用真實站點名稱與可借/可還車位數字。\n3. 回答簡潔明瞭，善用 Markdown 表格與條列式排版。\n4. 若站點空位不足（如僅剩 1 位），請溫馨提醒並提供周邊替代站點。`
           : `你是一位專業、親切且幽默的「${currentCityName} YouBike 2.0 AI 智慧諮詢專員」。請始終使用「繁體中文（台灣繁體）」回覆，語氣保持溫暖積極，充分利用即時站點資料與費率速查提供準確解答，使用精美的 Markdown 排版。`;
 
-      const historyText = messages.slice(1).slice(-8).map(msg => `${msg.role === 'user' ? '使用者' : 'AI 專員'}: ${msg.text}`).join('\n');
+      // 階層式歷史紀錄處理：最近 2 則訊息 (1 輪對話) 100% 完整保留；較早的對話訊息若超過 350 字則進行截斷
+      const historyMessages = messages.slice(1).slice(-8);
+      const historyLength = historyMessages.length;
+
+      const historyText = historyMessages
+        .map((msg, idx) => {
+          const isRecentTurn = idx >= historyLength - 2; // 最近上一輪不截斷，維護追問精確度
+          let content = msg.text;
+
+          if (!isRecentTurn && content.length > 350) {
+            content = content.substring(0, 350) + '...[過往對話已摘要]';
+          }
+
+          return `${msg.role === 'user' ? '使用者' : 'AI 專員'}: ${content}`;
+        })
+        .join('\n');
 
       const compiledPrompt = `${systemInstruction}\n\n${contextInfo}\n${guideInfo}\n\n${historyText ? `【對話歷史】\n${historyText}\n\n` : ''}使用者最新詢問：${textToSend}`;
 
