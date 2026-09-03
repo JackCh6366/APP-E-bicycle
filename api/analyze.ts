@@ -4,17 +4,22 @@ const SERVICE_WHITELIST: Record<string, { provider: 'gemini' | 'nvidia'; model: 
   gemini: {
     provider: 'gemini',
     model: 'gemini-3.5-flash-lite',
-    name: 'Google Gemini',
+    name: 'Google Gemini 3.5 Flash Lite',
+  },
+  'gpt-oss': {
+    provider: 'nvidia',
+    model: 'openai/gpt-oss-20b',
+    name: 'OpenAI GPT-OSS 20B',
   },
   nvidia: {
     provider: 'nvidia',
-    model: 'meta/llama-3.2-11b-vision-instruct',
-    name: 'Llama 即時模式',
+    model: 'openai/gpt-oss-20b',
+    name: 'OpenAI GPT-OSS 20B',
   },
   meta: {
     provider: 'nvidia',
-    model: 'meta/llama-3.2-11b-vision-instruct',
-    name: 'Meta Llama',
+    model: 'openai/gpt-oss-20b',
+    name: 'OpenAI GPT-OSS 20B',
   },
 };
 
@@ -78,7 +83,7 @@ export async function processAnalyzeRequest(
   if (!serviceConfig) {
     return {
       status: 400,
-      body: { error: '不合法的 AI 服務選擇。僅支援 "gemini"、"nvidia" 與 "meta"。' },
+      body: { error: '不合法的 AI 服務選擇。僅支援 "gemini" 與 "gpt-oss"。' },
     };
   }
 
