@@ -102,9 +102,9 @@ export async function processAnalyzeRequest(
     };
   }
 
-  // 4. Upstream API Call with AbortController Timeout (35 seconds)
+  // 4. Upstream API Call with AbortController Timeout (38 seconds)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 35000);
+  const timeoutId = setTimeout(() => controller.abort(), 38000);
 
   try {
     if (serviceConfig.provider === 'gemini') {
@@ -246,7 +246,7 @@ export async function processAnalyzeRequest(
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      console.error('[AI Service Timeout] Request aborted after 35s timeout.');
+      console.error('[AI Service Timeout] Request aborted after 38s timeout.');
       return {
         status: 504,
         body: { error: 'AI 服務回應逾時，請稍後重試。' },
