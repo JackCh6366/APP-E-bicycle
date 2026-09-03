@@ -90,10 +90,10 @@ export async function processAnalyzeRequest(
     };
   }
 
-  if (prompt.length > 2000) {
+  if (prompt.length > 12000) {
     return {
       status: 400,
-      body: { error: `查詢內容超出長度限制（當前 ${prompt.length} 字，上限 2000 字）。` },
+      body: { error: `查詢內容超出長度限制（當前 ${prompt.length} 字，上限 12000 字）。` },
     };
   }
 
