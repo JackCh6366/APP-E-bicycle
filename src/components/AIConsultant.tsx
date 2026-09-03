@@ -102,7 +102,12 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
 3. 客服資訊：客服專線 1999 或 02-89785522。
 `;
 
-      const systemInstruction = `你是一位專業、親切且幽默的「${currentCityName} YouBike 2.0 AI 智慧諮詢專員」。請始終使用「繁體中文（台灣繁體）」回覆，語氣保持溫暖積極，充分利用即時站點資料與費率速查提供準確解答，使用精美的 Markdown 排版。`;
+      const systemInstruction =
+        selectedService === 'nvidia'
+          ? `你是一位專注效率的「${currentCityName} YouBike 2.0 快速諮詢助手」。\n請遵守以下原則：\n1. 請一律使用「繁體中文（台灣繁體）」回覆，禁止使用簡體字。\n2. 回答力求簡潔、直接，優先使用條列式（-/1.2.3.）呈現重點。\n3. 不必鋪陳背景或說明廢話，直接給出最關鍵的資訊或行動建議。\n4. 每個答案控制在 5 點以內為佳，無需逐項展開說明。\n5. 若有即時站點資料，優先引用。`
+          : selectedService === 'meta'
+          ? `你是一位知識豐富、細心周到的「${currentCityName} YouBike 2.0 深度諮詢專員」。\n請遵守以下原則：\n1. 請一律使用「繁體中文（台灣繁體）」回覆，禁止使用簡體字。\n2. 回答要完整、多面向，適當分段並使用 Markdown 標題（###）組織內容。\n3. 主動補充相關注意事項、替代方案、優缺點分析或延伸資訊，讓使用者獲得全面了解。\n4. 語氣溫暖、耐心，像在與朋友分享經驗，而非只是條列資訊。\n5. 在回答末尾加一句貼心小提醒或建議。`
+          : `你是一位專業、親切且幽默的「${currentCityName} YouBike 2.0 AI 智慧諮詢專員」。請始終使用「繁體中文（台灣繁體）」回覆，語氣保持溫暖積極，充分利用即時站點資料與費率速查提供準確解答，使用精美的 Markdown 排版。`;
 
       const historyText = messages.slice(1).slice(-8).map(msg => `${msg.role === 'user' ? '使用者' : 'AI 專員'}: ${msg.text}`).join('\n');
 
@@ -315,9 +320,9 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
               onChange={(e) => setSelectedService(e.target.value as 'gemini' | 'nvidia' | 'meta')}
               className="bg-slate-800 dark:bg-slate-900 text-white text-[11px] font-semibold px-2 py-1 rounded-md border border-slate-700 focus:outline-none focus:ring-1 focus:ring-amber-400 cursor-pointer w-full text-right"
             >
-              <option value="gemini">Google Gemini (3.5 Flash Lite)</option>
-              <option value="nvidia">NVIDIA (Nemotron 3 Ultra)</option>
-              <option value="meta">Meta (Llama 3.2 11B)</option>
+              <option value="gemini">✨ 精準模式（Gemini）</option>
+              <option value="nvidia">🚲 即時推薦模式（Llama）</option>
+              <option value="meta">📋 深度諮詢模式（Llama）</option>
             </select>
           </div>
 
@@ -442,7 +447,7 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
             </button>
           </form>
           <div className="flex items-center justify-between mt-2 text-[9px] text-slate-400 px-1">
-            <span>Powered by {selectedService === 'gemini' ? 'Google Gemini 3.5 Flash Lite' : selectedService === 'nvidia' ? 'NVIDIA Nemotron 3 Ultra' : 'Meta Llama 3.2 11B'}</span>
+            <span>Powered by {selectedService === 'gemini' ? 'Google Gemini 3.5 Flash Lite' : selectedService === 'nvidia' ? 'Meta Llama 3.2 (快速回應)' : 'Meta Llama 3.2 (深度分析)'}</span>
             <span className="flex items-center gap-0.5">
               回車鍵傳送 <CornerDownLeft className="w-2.5 h-2.5" />
             </span>

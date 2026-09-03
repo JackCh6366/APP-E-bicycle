@@ -8,8 +8,8 @@ const SERVICE_WHITELIST: Record<string, { provider: 'gemini' | 'nvidia'; model: 
   },
   nvidia: {
     provider: 'nvidia',
-    model: 'nvidia/nemotron-3-ultra-550b-a55b',
-    name: 'NVIDIA Nemotron',
+    model: 'meta/llama-3.2-11b-vision-instruct',
+    name: 'Llama 即時模式',
   },
   meta: {
     provider: 'nvidia',
@@ -97,9 +97,9 @@ export async function processAnalyzeRequest(
     };
   }
 
-  // 4. Upstream API Call with AbortController Timeout (25 seconds)
+  // 4. Upstream API Call with AbortController Timeout (35 seconds)
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 25000);
+  const timeoutId = setTimeout(() => controller.abort(), 35000);
 
   try {
     if (serviceConfig.provider === 'gemini') {
@@ -241,7 +241,7 @@ export async function processAnalyzeRequest(
   } catch (error: any) {
     clearTimeout(timeoutId);
     if (error.name === 'AbortError') {
-      console.error('[AI Service Timeout] Request aborted after 25s timeout.');
+      console.error('[AI Service Timeout] Request aborted after 35s timeout.');
       return {
         status: 504,
         body: { error: 'AI 服務回應逾時，請稍後重試。' },
