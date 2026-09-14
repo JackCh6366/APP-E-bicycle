@@ -28,7 +28,13 @@ function devApiMiddleware(): Plugin {
                                req.socket?.remoteAddress ||
                                '127.0.0.1';
               const module = await server.ssrLoadModule('/api/analyze.ts');
-              const result = await module.processAnalyzeRequest(body.service, body.prompt, clientIp);
+              const result = await (module as any).processAnalyzeRequest(
+                body.service,
+                body.prompt,
+                clientIp,
+                body.systemInstruction,
+                body.history
+              );
               
               res.statusCode = result.status;
               res.setHeader('Content-Type', 'application/json');

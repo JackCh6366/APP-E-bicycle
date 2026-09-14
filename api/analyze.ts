@@ -1,10 +1,11 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-const SERVICE_WHITELIST: Record<string, { provider: 'gemini' | 'nvidia'; model: string; name: string }> = {
+const SERVICE_WHITELIST: Record<string, { provider: 'gemini' | 'nvidia'; model: string; fallbackModel?: string; name: string }> = {
   gemini: {
     provider: 'gemini',
-    model: 'gemini-3.5-flash-lite',
-    name: 'Google Gemini 3.5 Flash Lite',
+    model: 'gemini-3.6-flash',
+    fallbackModel: 'gemini-3.5-flash',
+    name: 'Google Gemini 3.6 Flash',
   },
   'gpt-oss': {
     provider: 'nvidia',
@@ -26,7 +27,7 @@ const SERVICE_WHITELIST: Record<string, { provider: 'gemini' | 'nvidia'; model: 
 // In-memory rate limiting map (IP -> timestamps array)
 const rateLimitMap = new Map<string, number[]>();
 const RATE_LIMIT_WINDOW_MS = 60 * 1000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 15; // 15 requests per minute
+const MAX_REQUESTS_PER_WINDOW = 20; // 20 requests per minute
 
 function checkRateLimit(ip: string): boolean {
   const now = Date.now();
@@ -65,16 +66,23 @@ function isQuotaError(errorText: string): boolean {
   );
 }
 
+export interface ChatHistoryItem {
+  role: 'user' | 'assistant';
+  text: string;
+}
+
 export async function processAnalyzeRequest(
   service: string,
   prompt: string,
-  ip: string
+  ip: string,
+  systemInstruction?: string,
+  history?: ChatHistoryItem[]
 ): Promise<{ status: number; body: { reply?: string; error?: string } }> {
   // 1. Rate Limiting Check
   if (!checkRateLimit(ip)) {
     return {
       status: 429,
-      body: { error: '請求過於頻繁，請稍後再試（速率限制：每分鐘最多 15 次）。' },
+      body: { error: '請求過於頻繁，請稍後再試（速率限制：每分鐘最多 20 次）。' },
     };
   }
 
@@ -95,10 +103,10 @@ export async function processAnalyzeRequest(
     };
   }
 
-  if (prompt.length > 6000) {
+  if (prompt.length > 8000) {
     return {
       status: 400,
-      body: { error: `查詢內容超出長度限制（當前 ${prompt.length} 字，上限 6000 字）。` },
+      body: { error: `查詢內容超出長度限制（當前 ${prompt.length} 字，上限 8000 字）。` },
     };
   }
 
@@ -116,19 +124,58 @@ export async function processAnalyzeRequest(
         };
       }
 
-      const geminiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${serviceConfig.model}:generateContent?key=${apiKey}`;
-      const response = await fetch(geminiUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        signal: controller.signal,
-        body: JSON.stringify({
-          contents: [
-            {
-              parts: [{ text: prompt }],
-            },
-          ],
-        }),
+      // Build structured contents for Gemini
+      const contents: Array<{ role?: string; parts: Array<{ text: string }> }> = [];
+
+      if (Array.isArray(history) && history.length > 0) {
+        for (const item of history) {
+          if (item.text && item.text.trim()) {
+            contents.push({
+              role: item.role === 'assistant' ? 'model' : 'user',
+              parts: [{ text: item.text }],
+            });
+          }
+        }
+      }
+
+      // Append current user prompt
+      contents.push({
+        role: 'user',
+        parts: [{ text: prompt }],
       });
+
+      const requestBody: any = {
+        contents,
+        generationConfig: {
+          temperature: 0.2, // Lower temperature to prevent hallucination and off-topic responses
+          topP: 0.8,
+          maxOutputTokens: 2048,
+        },
+      };
+
+      if (systemInstruction && systemInstruction.trim()) {
+        requestBody.system_instruction = {
+          parts: [{ text: systemInstruction }],
+        };
+      }
+
+      const callGemini = async (modelName: string) => {
+        const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
+        return await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal,
+          body: JSON.stringify(requestBody),
+        });
+      };
+
+      let response = await callGemini(serviceConfig.model);
+
+      // If model not found (e.g. 404) and fallbackModel exists, try fallback
+      if (response.status === 404 && serviceConfig.fallbackModel) {
+        console.warn(`[Google Gemini API] Model ${serviceConfig.model} not found, falling back to ${serviceConfig.fallbackModel}`);
+        response = await callGemini(serviceConfig.fallbackModel);
+      }
 
       clearTimeout(timeoutId);
 
@@ -145,7 +192,7 @@ export async function processAnalyzeRequest(
         if (isQuotaError(errorText) || response.status === 429) {
           return {
             status: 429,
-            body: { error: 'AI 服務目前使用量過大，請稍後再試。' },
+            body: { error: 'AI 服務目前使用量過大或額度不足，請稍後再試。' },
           };
         }
 
@@ -182,6 +229,32 @@ export async function processAnalyzeRequest(
       }
 
       const nvidiaUrl = 'https://integrate.api.nvidia.com/v1/chat/completions';
+      
+      const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
+
+      if (systemInstruction && systemInstruction.trim()) {
+        messages.push({
+          role: 'system',
+          content: systemInstruction,
+        });
+      }
+
+      if (Array.isArray(history) && history.length > 0) {
+        for (const item of history) {
+          if (item.text && item.text.trim()) {
+            messages.push({
+              role: item.role === 'assistant' ? 'assistant' : 'user',
+              content: item.text,
+            });
+          }
+        }
+      }
+
+      messages.push({
+        role: 'user',
+        content: prompt,
+      });
+
       const response = await fetch(nvidiaUrl, {
         method: 'POST',
         headers: {
@@ -191,8 +264,8 @@ export async function processAnalyzeRequest(
         signal: controller.signal,
         body: JSON.stringify({
           model: serviceConfig.model,
-          messages: [{ role: 'user', content: prompt }],
-          temperature: 0.7,
+          messages,
+          temperature: 0.2, // Lower temperature to focus answers
           max_tokens: 2048,
         }),
       });
@@ -273,8 +346,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     req.socket?.remoteAddress ||
     '127.0.0.1';
 
-  const { service, prompt } = req.body || {};
+  const { service, prompt, systemInstruction, history } = req.body || {};
 
-  const result = await processAnalyzeRequest(service, prompt, clientIp);
+  const result = await processAnalyzeRequest(service, prompt, clientIp, systemInstruction, history);
   return res.status(result.status).json(result.body);
 }
