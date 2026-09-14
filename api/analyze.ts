@@ -1,4 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import { ensureCache } from './cache-manager';
+import { getKnowledgeBaseText, getSystemInstruction } from './knowledge-base';
 
 const SERVICE_WHITELIST: Record<string, { provider: 'gemini' | 'nvidia'; model: string; fallbackModel?: string; name: string }> = {
   gemini: {
@@ -76,7 +78,8 @@ export async function processAnalyzeRequest(
   prompt: string,
   ip: string,
   systemInstruction?: string,
-  history?: ChatHistoryItem[]
+  history?: ChatHistoryItem[],
+  cityName?: string
 ): Promise<{ status: number; body: { reply?: string; error?: string } }> {
   // 1. Rate Limiting Check
   if (!checkRateLimit(ip)) {
@@ -124,6 +127,10 @@ export async function processAnalyzeRequest(
         };
       }
 
+      // --- Gemini Context Caching ---
+      const resolvedCityName = cityName || '台北市';
+      const cacheResult = await ensureCache(apiKey, serviceConfig.model, resolvedCityName);
+
       // Build structured contents for Gemini
       const contents: Array<{ role?: string; parts: Array<{ text: string }> }> = [];
 
@@ -153,10 +160,36 @@ export async function processAnalyzeRequest(
         },
       };
 
-      if (systemInstruction && systemInstruction.trim()) {
+      if (cacheResult.usedCache && cacheResult.cacheName) {
+        // 使用 Context Cache：引用快取的知識庫 + system instruction
+        requestBody.cachedContent = cacheResult.cacheName;
+        console.log(`[Analyze] Using cached content: "${cacheResult.cacheName}"`);
+      } else {
+        // Fallback：直接注入 system instruction 與知識庫
+        const fallbackSysInstruction = cacheResult.fallbackSystemInstruction || systemInstruction || getSystemInstruction(resolvedCityName);
+        const fallbackKB = cacheResult.fallbackKnowledgeBase || getKnowledgeBaseText();
+
         requestBody.system_instruction = {
-          parts: [{ text: systemInstruction }],
+          parts: [{ text: fallbackSysInstruction }],
         };
+
+        // 將知識庫作為前置 context 注入 contents 開頭
+        contents.unshift(
+          {
+            role: 'user',
+            parts: [{ text: fallbackKB }],
+          },
+          {
+            role: 'model',
+            parts: [
+              {
+                text: '我已完整閱讀並理解 YouBike 2.0 / 2.0E 知識庫的所有內容。我會嚴格依據這些資料回答使用者的問題。請開始提問！',
+              },
+            ],
+          }
+        );
+
+        console.log('[Analyze] Cache unavailable, using direct injection fallback.');
       }
 
       const callGemini = async (modelName: string) => {
@@ -356,8 +389,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     req.socket?.remoteAddress ||
     '127.0.0.1';
 
-  const { service, prompt, systemInstruction, history } = req.body || {};
+  const { service, prompt, systemInstruction, history, cityName } = req.body || {};
 
-  const result = await processAnalyzeRequest(service, prompt, clientIp, systemInstruction, history);
+  const result = await processAnalyzeRequest(service, prompt, clientIp, systemInstruction, history, cityName);
   return res.status(result.status).json(result.body);
 }

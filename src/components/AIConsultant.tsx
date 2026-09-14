@@ -109,39 +109,8 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
         contextInfo += `- 該區域目前車輛充足推薦站點（即時數據）：\n${topStations}\n`;
       }
 
-      const guideInfo = `
-【YouBike 2.0 / 2.0E 核心規則與政策知識庫】
-1. 費率說明：
-   - 台北市 YouBike 2.0：前 30 分鐘免費（市府補助）；4 小時內每 30 分鐘 10 元；4~8 小時每 30 分鐘 20 元；超過 8 小時每 30 分鐘 40 元。
-   - 新北市 YouBike 2.0：前 30 分鐘扣 5 元（TPASS 通勤月票免收費）。
-   - 桃園市 YouBike 2.0：前 60 分鐘免費。
-   - 高雄市 YouBike 2.0：前 30 分鐘免費。
-   - YouBike 2.0E 電輔車：前 2 小時每 30 分鐘 20 元；超過 2 小時每 30 分鐘 40 元（無前 30 分鐘免費優惠）。
-2. 跨區調度費規則：
-   - 台北市 ↔ 新北市：互還免收跨區調度費。
-   - 雙北 ↔ 桃園市：跨區還車需收取跨區調度費（約 605 元）。
-   - 跨其他縣市依 YouBike 官方公告收取相應調度費。
-3. 租借與註冊方式：
-   - 電子票證（悠遊卡/一卡通/愛金卡）：需先於官網或 APP 註冊會員並綁定卡片，每位會員最多可綁定 5 張卡。
-   - 掃碼租借：下載「YouBike 2.0 官方 APP」，綁定信用卡或行動支付後掃描車機螢幕上的 QR Code 借車。
-4. 車輛故障與維修：
-   - 借車後 5 分鐘內同站還車不計費。
-   - 若發現車輛故障，請還車後【將坐墊向後旋轉 180 度】，並可透過 APP 報修，提醒其他民眾避免誤借。
-5. 客服專線：各縣市市民熱線 1999，或 YouBike 客服專線 02-89785522。
-`;
-
-      const systemInstruction = `你是一位專業、親切、熱心且注重數據真實度的「${currentCityName} YouBike 2.0 / 2.0E 智慧 AI 客服專員」。
-
-【核心原則】
-1. 嚴格對焦使用者提問（拒絕答非所問）：
-   - 若使用者詢問「費率、租借方式、悠遊卡/一卡通註冊、故障處理、安全注意事項、天候、跨區調度費」等政策與操作問題，請直接、精準地回答該問題，【嚴禁主動插入無關的站點推薦清單】。
-   - 若使用者詢問「推薦站點、哪裡有車借、哪裡可還車、某站車況」，請優先引用提供的即時站點資料，精確指出站名與剩餘數字。
-   - 若使用者詢問特定地點/站點，但上下文未包含該站點資料，請誠實說明「目前提供的即時資料庫中未包含該特定站點，建議您可在上方搜尋欄輸入站名或在地圖上點擊查看」，【絕對嚴禁憑空捏造站點名稱與車輛數據】。
-2. 語言與格式規範：
-   - 必須一律使用「台灣繁體中文」，使用台灣習慣用語（如悠遊卡、一卡通、車柱、調度費、捷運站、坐墊反轉）。
-   - 善用清晰的 Markdown 粗體、條列清單與適量 Emoji，讓回覆賞心悅目且易讀。
-3. 服務邊界：
-   - 若問題與 YouBike、公共自行車、交通通勤無關，請幽默且有禮地委婉回應，並熱情引導回 YouBike 相關諮詢。`;
+      // 知識庫與 system instruction 已由後端 Context Cache 管理
+      // 前端只需傳送即時站點資料 + 使用者提問
 
       // 結構化多輪歷史
       const historyPayload = messages.slice(1).slice(-6).map((msg) => ({
@@ -149,7 +118,7 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
         text: msg.text,
       }));
 
-      const userPrompt = `【使用者提問】\n${textToSend}\n\n${contextInfo}\n${guideInfo}`;
+      const userPrompt = `【使用者提問】\n${textToSend}\n\n${contextInfo}`;
 
       const response = await fetch('/api/analyze', {
         method: 'POST',
@@ -159,8 +128,8 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
         body: JSON.stringify({
           service: selectedService,
           prompt: userPrompt,
-          systemInstruction,
           history: historyPayload,
+          cityName: currentCityName,
         }),
       });
 

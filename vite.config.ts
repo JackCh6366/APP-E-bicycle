@@ -33,7 +33,8 @@ function devApiMiddleware(): Plugin {
                 body.prompt,
                 clientIp,
                 body.systemInstruction,
-                body.history
+                body.history,
+                body.cityName
               );
               
               res.statusCode = result.status;
