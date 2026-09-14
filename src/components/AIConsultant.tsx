@@ -14,6 +14,179 @@ interface AIConsultantProps {
   currentDistrict: string;
   selectedStation: YouBikeStation | null;
   stationsInDistrict: YouBikeStation[];
+  allStations?: YouBikeStation[];
+}
+
+interface StationMatchResult {
+  type: 'specific_found' | 'specific_not_found' | 'open_query';
+  matchedStations: YouBikeStation[];
+  extractedKeyword?: string;
+}
+
+function cleanStationRawName(sna: string): string {
+  return sna.replace(/^YouBike2\.0_/i, '').trim();
+}
+
+/**
+ * 智慧比對使用者輸入中提到的站點（支援口語簡稱、模糊比對與防混淆）
+ */
+function matchStationsFromQuery(
+  query: string,
+  allStations: YouBikeStation[],
+  stationsInDistrict: YouBikeStation[]
+): StationMatchResult {
+  const normalizedQuery = query.trim();
+
+  // 0. 識別行政區與開放性推薦意圖
+  const districtList = [
+    '中正區', '大同區', '中山區', '松山區', '大安區', '萬華區', '信義區', '士林區', '北投區', '內湖區', '南港區', '文山區',
+    '板橋區', '三重區', '中和區', '永和區', '新莊區', '新店區', '樹林區', '鶯歌區', '三峽區', '淡水區', '汐止區', '瑞芳區', '土城區', '蘆洲區', '五股區', '泰山區', '林口區',
+    '桃園區', '中壢區', '平鎮區', '八德區', '楊梅區', '蘆竹區', '大溪區', '龜山區', '大園區', '觀音區', '新屋區', '龍潭區', '復興區',
+    '新興區', '前金區', '苓雅區', '鹽埕區', '鼓山區', '旗津區', '前鎮區', '三民區', '楠梓區', '小港區', '左營區'
+  ];
+
+  const matchedDistrict = districtList.find(d => normalizedQuery.includes(d) || normalizedQuery.includes(d.replace('區', '')));
+
+  // 1. 開放性問題模式（非指名特定站點）
+  const openPatterns = [
+    /附近有哪些站/,
+    /推薦.*站點/,
+    /推薦.*借車/,
+    /推薦.*還車/,
+    /哪裡有車/,
+    /哪裡可以借/,
+    /哪裡可還/,
+    /推薦去哪/,
+    /附近有車/,
+    /附近推薦/,
+    /這附近/,
+    /車輛充足/,
+  ];
+
+  const isOpenQuestion = openPatterns.some((pattern) => pattern.test(normalizedQuery));
+
+  // 如果使用者是問「某行政區推薦去哪借車/附近有哪些站」，直接視為開放推薦
+  if (isOpenQuestion && (matchedDistrict || normalizedQuery.includes('附近') || normalizedQuery.includes('推薦'))) {
+    const targetStations = matchedDistrict
+      ? allStations.filter(s => s.sarea.includes(matchedDistrict.replace('區', '')))
+      : stationsInDistrict;
+
+    const topAvailable = [...targetStations]
+      .filter(s => s.available_rent_bikes > 0 && s.act === '1')
+      .sort((a, b) => b.available_rent_bikes - a.available_rent_bikes)
+      .slice(0, 5);
+
+    return {
+      type: 'open_query',
+      matchedStations: topAvailable.length > 0 ? topAvailable : targetStations.slice(0, 5),
+      extractedKeyword: matchedDistrict || undefined,
+    };
+  }
+
+  // 2. 搜尋特定站點比對
+  let candidates: Array<{
+    station: YouBikeStation;
+    score: number;
+    matchTerm: string;
+  }> = [];
+
+  for (const s of allStations) {
+    const rawClean = cleanStationRawName(s.sna);
+    const baseName = rawClean.replace(/\(.*?\)/g, '').replace(/（.*?）/g, '').trim();
+
+    const aliases = new Set<string>();
+    aliases.add(s.sna);
+    aliases.add(rawClean);
+    aliases.add(baseName);
+
+    const mrtMatch = baseName.match(/^捷運(.+?)(站)?$/);
+    if (mrtMatch) {
+      const core = mrtMatch[1];
+      aliases.add(`${core}捷運站`);
+      aliases.add(`${core}捷運`);
+      aliases.add(`${core}站`);
+      if (core.length >= 2) {
+        aliases.add(core);
+      }
+    } else {
+      aliases.add(`${baseName}站`);
+      const suffixStation = baseName.match(/^(.+?)站$/);
+      if (suffixStation && suffixStation[1].length >= 2) {
+        aliases.add(suffixStation[1]);
+      }
+    }
+
+    for (const alias of aliases) {
+      if (alias.length < 2) continue;
+      if (districtList.some(d => d.startsWith(alias)) && isOpenQuestion) continue;
+
+      if (normalizedQuery.includes(alias)) {
+        let score = alias.length * 10;
+        if (alias === s.sna || alias === rawClean) {
+          score += 60;
+        } else if (alias === baseName) {
+          score += 40;
+        } else if (alias.includes('捷運') || alias.includes('站')) {
+          score += 25;
+        }
+
+        candidates.push({
+          station: s,
+          score,
+          matchTerm: alias,
+        });
+        break;
+      }
+    }
+  }
+
+  if (candidates.length > 0) {
+    candidates.sort((a, b) => b.score - a.score);
+
+    const topScore = candidates[0].score;
+    const topTerm = candidates[0].matchTerm;
+
+    const matched = candidates
+      .filter((c) => c.score >= topScore - 10)
+      .map((c) => c.station)
+      .filter((s, idx, arr) => arr.findIndex((x) => x.sno === s.sno) === idx)
+      .slice(0, 3);
+
+    return {
+      type: 'specific_found',
+      matchedStations: matched,
+      extractedKeyword: topTerm,
+    };
+  }
+
+  // 3. 檢查是否指名特定站點但查無此站
+  const cleanedQueryForExtract = normalizedQuery
+    .replace(/^(請問一下|請問|想問|幫我查|查一下|查詢)/g, '')
+    .trim();
+
+  const specificInquiryMatch = cleanedQueryForExtract.match(
+    /([\u4e00-\u9fa5A-Za-z0-9_]{2,12}(?:捷運站|站點|火車站|高鐵站|公車站|站))|([「『](.+?)[」』])/
+  );
+
+  if (specificInquiryMatch && !isOpenQuestion) {
+    const extractedName = specificInquiryMatch[3] || specificInquiryMatch[1] || '';
+    return {
+      type: 'specific_not_found',
+      matchedStations: [],
+      extractedKeyword: extractedName,
+    };
+  }
+
+  // 4. 開放式提問或未偵測到特定站名
+  const fallbackAvailable = [...stationsInDistrict]
+    .filter(s => s.available_rent_bikes > 0 && s.act === '1')
+    .sort((a, b) => b.available_rent_bikes - a.available_rent_bikes)
+    .slice(0, 5);
+
+  return {
+    type: 'open_query',
+    matchedStations: fallbackAvailable.length > 0 ? fallbackAvailable : stationsInDistrict.slice(0, 5),
+  };
 }
 
 const QUICK_QUESTIONS = [
@@ -25,7 +198,7 @@ const QUICK_QUESTIONS = [
   { text: '🚴 雙北/跨縣市調度費規則', tag: 'dispatch' },
 ];
 
-export default function AIConsultant({ currentCityName = '台北市', currentDistrict, selectedStation, stationsInDistrict }: AIConsultantProps) {
+export default function AIConsultant({ currentCityName = '台北市', currentDistrict, selectedStation, stationsInDistrict, allStations }: AIConsultantProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -86,31 +259,33 @@ export default function AIConsultant({ currentCityName = '台北市', currentDis
 
     try {
       const isAskingStation = isStationQuery(textToSend);
-
-      // Top 5 available stations format
-      const topStations = [...stationsInDistrict]
-        .filter(s => s.available_rent_bikes > 0 && s.act === '1')
-        .sort((a, b) => b.available_rent_bikes - a.available_rent_bikes)
-        .slice(0, 5)
-        .map(s => `- ${s.sna}: 可借 ${s.available_rent_bikes} 輛 / 可還 ${s.available_return_bikes} 空位 (${s.ar || '無詳細地址'})`)
-        .join('\n');
+      const stationPool = (allStations && allStations.length > 0) ? allStations : stationsInDistrict;
+      const matchResult = matchStationsFromQuery(textToSend, stationPool, stationsInDistrict);
 
       let contextInfo = `【即時系統環境】\n- 當前縣市：${currentCityName}\n`;
       if (currentDistrict) {
-        contextInfo += `- 使用者瀏覽行政區：${currentDistrict}\n`;
+        contextInfo += `- 使用者目前瀏覽行政區：${currentDistrict}\n`;
       }
       if (selectedStation) {
-        contextInfo += `- 使用者目前選取的特定站點：${selectedStation.sna} (${selectedStation.ar || '無地址資訊'})\n`;
-        contextInfo += `  * 即時車況：可借 ${selectedStation.available_rent_bikes} 輛，可還空位 ${selectedStation.available_return_bikes} 個，營運狀態：${selectedStation.act === '1' ? '正常營運' : '暫停服務'}\n`;
+        contextInfo += `- 使用者地圖選取之站點：${selectedStation.sna} (${selectedStation.ar || '無詳細地址'})\n`;
+        contextInfo += `  * 車況：可借 ${selectedStation.available_rent_bikes} 輛，可還空位 ${selectedStation.available_return_bikes} 個，營運狀態：${selectedStation.act === '1' ? '正常營運' : '暫停服務'}\n`;
       }
 
-      // 只有在查詢站點/找車時才注入 Top 5 站點
-      if (isAskingStation && topStations) {
-        contextInfo += `- 該區域目前車輛充足推薦站點（即時數據）：\n${topStations}\n`;
+      if (matchResult.type === 'specific_found') {
+        contextInfo += `- 使用者查詢特定站點之即時車況（精準比對成功）：\n`;
+        for (const s of matchResult.matchedStations) {
+          contextInfo += `  * ${s.sna} [${s.sarea}]: 可借 ${s.available_rent_bikes} 輛 / 可還 ${s.available_return_bikes} 空位 (營運狀態: ${s.act === '1' ? '正常營運' : '暫停服務'}, 地址: ${s.ar || '無詳細地址'})\n`;
+        }
+        contextInfo += `【回答指引】：請優先且精準回答上方比對到的站點即時車況，切勿回答其他無關站點。\n`;
+      } else if (matchResult.type === 'specific_not_found') {
+        contextInfo += `- 使用者指名查詢之站點「${matchResult.extractedKeyword}」：在目前【${currentCityName}】即時資料庫中查無完全符合的站點名稱。\n`;
+        contextInfo += `【回答指引】：請明確且誠實告知使用者在${currentCityName}即時資料庫中查無此站點，建議確認站名是否正確或於上方搜尋欄查詢。嚴禁捏造站點數據或拿其他無關站點冒充。\n`;
+      } else if (isAskingStation && matchResult.matchedStations.length > 0) {
+        contextInfo += `- 該區域目前車輛充足推薦站點（即時數據）：\n`;
+        for (const s of matchResult.matchedStations) {
+          contextInfo += `  * ${s.sna} [${s.sarea}]: 可借 ${s.available_rent_bikes} 輛 / 可還 ${s.available_return_bikes} 空位 (${s.ar || '無詳細地址'})\n`;
+        }
       }
-
-      // 知識庫與 system instruction 已由後端 Context Cache 管理
-      // 前端只需傳送即時站點資料 + 使用者提問
 
       // 結構化多輪歷史
       const historyPayload = messages.slice(1).slice(-6).map((msg) => ({

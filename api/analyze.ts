@@ -1,5 +1,4 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { ensureCache } from './cache-manager';
 import { getKnowledgeBaseText, getSystemInstruction } from './knowledge-base';
 
 const SERVICE_WHITELIST: Record<string, { provider: 'gemini' | 'nvidia'; model: string; fallbackModel?: string; name: string }> = {
@@ -118,6 +117,10 @@ export async function processAnalyzeRequest(
   const timeoutId = setTimeout(() => controller.abort(), 38000);
 
   try {
+    const resolvedCityName = cityName || '台北市';
+    const activeSystemInstruction = systemInstruction || getSystemInstruction(resolvedCityName);
+    const activeKnowledgeBase = getKnowledgeBaseText();
+
     if (serviceConfig.provider === 'gemini') {
       const apiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_GENERATIVE_AI_API_KEY;
       if (!apiKey) {
@@ -127,12 +130,24 @@ export async function processAnalyzeRequest(
         };
       }
 
-      // --- Gemini Context Caching ---
-      const resolvedCityName = cityName || '台北市';
-      const cacheResult = await ensureCache(apiKey, serviceConfig.model, resolvedCityName);
-
       // Build structured contents for Gemini
       const contents: Array<{ role?: string; parts: Array<{ text: string }> }> = [];
+
+      // Prepend knowledge base as structured context
+      contents.push(
+        {
+          role: 'user',
+          parts: [{ text: activeKnowledgeBase }],
+        },
+        {
+          role: 'model',
+          parts: [
+            {
+              text: '我已完整閱讀並理解 YouBike 2.0 / 2.0E 核心規則與政策知識庫。我會嚴格依據這些資料回答使用者的問題。請開始提問！',
+            },
+          ],
+        }
+      );
 
       if (Array.isArray(history) && history.length > 0) {
         for (const item of history) {
@@ -158,39 +173,10 @@ export async function processAnalyzeRequest(
           topP: 0.8,
           maxOutputTokens: 2048,
         },
+        system_instruction: {
+          parts: [{ text: activeSystemInstruction }],
+        },
       };
-
-      if (cacheResult.usedCache && cacheResult.cacheName) {
-        // 使用 Context Cache：引用快取的知識庫 + system instruction
-        requestBody.cachedContent = cacheResult.cacheName;
-        console.log(`[Analyze] Using cached content: "${cacheResult.cacheName}"`);
-      } else {
-        // Fallback：直接注入 system instruction 與知識庫
-        const fallbackSysInstruction = cacheResult.fallbackSystemInstruction || systemInstruction || getSystemInstruction(resolvedCityName);
-        const fallbackKB = cacheResult.fallbackKnowledgeBase || getKnowledgeBaseText();
-
-        requestBody.system_instruction = {
-          parts: [{ text: fallbackSysInstruction }],
-        };
-
-        // 將知識庫作為前置 context 注入 contents 開頭
-        contents.unshift(
-          {
-            role: 'user',
-            parts: [{ text: fallbackKB }],
-          },
-          {
-            role: 'model',
-            parts: [
-              {
-                text: '我已完整閱讀並理解 YouBike 2.0 / 2.0E 知識庫的所有內容。我會嚴格依據這些資料回答使用者的問題。請開始提問！',
-              },
-            ],
-          }
-        );
-
-        console.log('[Analyze] Cache unavailable, using direct injection fallback.');
-      }
 
       const callGemini = async (modelName: string) => {
         const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
@@ -275,12 +261,11 @@ export async function processAnalyzeRequest(
       
       const messages: Array<{ role: 'system' | 'user' | 'assistant'; content: string }> = [];
 
-      if (systemInstruction && systemInstruction.trim()) {
-        messages.push({
-          role: 'system',
-          content: systemInstruction,
-        });
-      }
+      // Unified system instruction and knowledge base for NVIDIA (GPT-OSS 20B)
+      messages.push({
+        role: 'system',
+        content: `${activeSystemInstruction}\n\n${activeKnowledgeBase}`,
+      });
 
       if (Array.isArray(history) && history.length > 0) {
         for (const item of history) {

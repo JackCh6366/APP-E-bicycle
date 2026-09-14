@@ -419,6 +419,7 @@ function YouBikeAppContent() {
         currentDistrict={filter.sarea}
         selectedStation={selectedStation}
         stationsInDistrict={stationsInDistrict}
+        allStations={data || []}
       />
 
       {/* 4. Footer */}
