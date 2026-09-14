@@ -171,9 +171,12 @@ export async function processAnalyzeRequest(
 
       let response = await callGemini(serviceConfig.model);
 
-      // If model not found (e.g. 404) and fallbackModel exists, try fallback
-      if (response.status === 404 && serviceConfig.fallbackModel) {
-        console.warn(`[Google Gemini API] Model ${serviceConfig.model} not found, falling back to ${serviceConfig.fallbackModel}`);
+      // If primary model fails (e.g. 503 High demand, 429 rate limit, 500 error, 404 not found) and fallbackModel exists, automatically fall back
+      if (!response.ok && serviceConfig.fallbackModel) {
+        const primaryError = await response.text().catch(() => '');
+        console.warn(
+          `[Google Gemini API] Primary model ${serviceConfig.model} returned HTTP ${response.status} (${primaryError.slice(0, 150)}). Automatically falling back to ${serviceConfig.fallbackModel}...`
+        );
         response = await callGemini(serviceConfig.fallbackModel);
       }
 
@@ -188,6 +191,13 @@ export async function processAnalyzeRequest(
           const parsed = JSON.parse(errorText);
           upstreamMsg = parsed?.error?.message || errorText;
         } catch (_) {}
+
+        if (response.status === 503 || upstreamMsg.toLowerCase().includes('high demand')) {
+          return {
+            status: 503,
+            body: { error: 'Google Gemini 官方目前處於尖峰高負載狀態（503 暫時性擁擠），請稍候 3~5 秒後再試，或可切換至 OpenAI GPT-OSS 模型。' },
+          };
+        }
 
         if (isQuotaError(errorText) || response.status === 429) {
           return {
